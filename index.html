@@ -2859,11 +2859,11 @@ async function _gerarHashCredencial(senha, papel) {
   // Hashes PBKDF2 — NÃO são as senhas; não revelam a senha original.
   const _h = [
     // admin — PBKDF2(senha, 'lapa-adm-2026-s1', 200000, SHA-256)
-    'dcb4570b2c33df21c4164826450424d5' +
-    'b4bb9b9692fa505a51484960ad7a542b',
+    '206be46735113f49f6d4c91ccefeb713' +
+    'b45265f7e9e1303bf2714d023969e0ad',
     // membro — PBKDF2(senha, 'lapa-mbr-2026-s1', 200000, SHA-256)
-    '29b8aacfedc506440b5b4acf29acc2fe' +
-    '50a06fe7b4b9a2cec976adf22d45a9df',
+    '013d8e7942f802c73767a5e0fbe527b4' +
+    '946de8f8de2f4d8d34746ceb2999f7b2',
   ];
   CREDENTIALS.admin.hash  = _h[0];
   CREDENTIALS.membro.hash = _h[1];
