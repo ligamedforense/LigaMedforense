@@ -3285,6 +3285,34 @@ const _apiCache = {};
 const _apiCacheTTL = 30000;
 function _cacheKey(p){ return JSON.stringify(p); }
 
+// ── Normaliza cada registro vindo da API ────────────────────────────────
+// Corrige dois problemas comuns ao ler do Google Sheets:
+//   1. Datas chegam como ISO completo ("2026-04-20T03:00:00.000Z") → extrai só YYYY-MM-DD
+//   2. Chave de ID chega como "id" minúsculo → espelha para "ID" maiúsculo (compatibilidade)
+function _normalizeRecord(rec) {
+  if (!rec || typeof rec !== 'object') return rec;
+
+  // ID: garante que .id e .ID existam simultaneamente
+  if (rec.id  !== undefined && rec.ID  === undefined) rec.ID  = rec.id;
+  if (rec.ID  !== undefined && rec.id  === undefined) rec.id  = rec.ID;
+
+  // Campos de data conhecidos: extrai só os 10 primeiros caracteres (YYYY-MM-DD)
+  const DATE_FIELDS = ['Data','DataIngresso','DataInicio','dataUpload','Prazo','HorarioInicio','DataFim'];
+  DATE_FIELDS.forEach(f => {
+    if (rec[f] && typeof rec[f] === 'string' && rec[f].length > 10) {
+      rec[f] = rec[f].substring(0, 10);
+    }
+    // Google Sheets pode retornar Date serializado como número (serial) — converte
+    if (rec[f] && typeof rec[f] === 'number') {
+      // Serial do Sheets: dias desde 30/12/1899
+      const d = new Date(Math.round((rec[f] - 25569) * 86400 * 1000));
+      rec[f] = d.toISOString().substring(0, 10);
+    }
+  });
+
+  return rec;
+}
+
 async function apiGet(params) {
   if (!API_URL || API_URL.includes('COLE_A_URL')) return null;
   const key = _cacheKey(params);
@@ -3297,8 +3325,12 @@ async function apiGet(params) {
     const resp = await fetch(url);
     const data = await resp.json();
     if (!data.success) throw new Error(data.error || 'Erro desconhecido');
-    _apiCache[key] = { data: data.data, ts: now };
-    return data.data;
+    // Normaliza IDs e datas antes de cachear
+    const normalized = Array.isArray(data.data)
+      ? data.data.map(_normalizeRecord)
+      : data.data;
+    _apiCache[key] = { data: normalized, ts: now };
+    return normalized;
   } catch (e) {
     console.warn('API GET falhou:', e.message);
     return null;
@@ -4033,7 +4065,7 @@ async function verAta(id, titulo) {
   // Tenta buscar conteúdo real da ata
   try {
     const data = await apiGet({ action: 'getAll', sheet: 'Atas' });
-    const ata  = data?.find(a => String(a.ID) === String(id));
+    const ata  = data?.find(a => String(a.ID || a.id) === String(id));
     if (ata) {
       const pautaEl = document.querySelector('#modal-ver-ata .ata-pauta-content');
       const delibEl = document.querySelector('#modal-ver-ata .ata-delib-content');
@@ -4233,7 +4265,7 @@ async function editEvento(id) {
   showToast('Buscando dados do evento…', 'info');
   try {
     const data = await apiGet({ action: 'getAll', sheet: 'Eventos' });
-    const ev   = data?.find(e => String(e.ID) === String(id));
+    const ev   = data?.find(e => String(e.ID || e.id) === String(id));
     if (!ev) { showToast('Evento não encontrado.', 'error'); return; }
     const modal = document.getElementById('modal-edit-evento');
     document.getElementById('edit-evento-id').value        = ev.ID;
@@ -4285,7 +4317,7 @@ async function editProjeto(id) {
   showToast('Buscando dados do projeto…', 'info');
   try {
     const data = await apiGet({ action: 'getAll', sheet: 'Pesquisas' });
-    const p    = data?.find(x => String(x.ID) === String(id));
+    const p    = data?.find(x => String(x.ID || x.id) === String(id));
     if (!p) { showToast('Projeto não encontrado.', 'error'); return; }
     const modal = document.getElementById('modal-edit-projeto');
     document.getElementById('edit-proj-id').value      = p.ID;
@@ -4333,7 +4365,7 @@ async function editAta(id) {
   showToast('Buscando dados da ata…', 'info');
   try {
     const data = await apiGet({ action: 'getAll', sheet: 'Atas' });
-    const ata  = data?.find(a => String(a.ID) === String(id));
+    const ata  = data?.find(a => String(a.ID || a.id) === String(id));
     if (!ata) { showToast('Ata não encontrada.', 'error'); return; }
     document.getElementById('edit-ata-id').value      = ata.ID;
     document.getElementById('edit-ata-titulo').value  = ata.Titulo    || '';
@@ -5131,7 +5163,7 @@ async function editCurso(id) {
   showToast('Buscando dados do curso…', 'info');
   try {
     const data = await apiGet({ action: 'getAll', sheet: 'Cursos' });
-    const c    = data?.find(x => String(x.ID) === String(id));
+    const c    = data?.find(x => String(x.ID || x.id) === String(id));
     if (!c) { showToast('Curso não encontrado.', 'error'); return; }
     // Preenche modal via IDs semânticos
     const modal = document.getElementById('modal-novo-curso');
@@ -6701,7 +6733,7 @@ function _renderCalWeek(container) {
 
   const prevDom  = new Date(dom); prevDom.setDate(dom.getDate()-7);
   const nextDom  = new Date(dom); nextDom.setDate(dom.getDate()+7);
-  const fmtDate  = d => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+  const fmtDate  = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 
   let html = `
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
