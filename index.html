@@ -2581,6 +2581,11 @@ th.sort-desc .sort-icon { opacity: 1; color: var(--teal); }
     </div>
 
     <div class="form-group">
+      <label class="form-label">Descrição <span style="color:var(--text3);font-weight:400">(opcional)</span></label>
+      <input id="edit-doc-static-desc" class="form-input" type="text" placeholder="Ex: Versão aprovada em assembleia">
+    </div>
+
+    <div class="form-group">
       <label class="form-label">
         <i class="fab fa-google-drive" style="color:#4285F4;margin-right:6px"></i>
         Link do Google Drive
@@ -5022,8 +5027,8 @@ async function salvarLancamento() {
           })
         });
         const upResult = await upResp.json();
-        if (upResult.success && upResult.url) {
-          row.ComprovanteUrl = upResult.url;
+        if (upResult.success && upResult.data && upResult.data.url) {
+          row.ComprovanteUrl = upResult.data.url;
         }
       } else {
         showToast('Comprovante muito grande (máx. 10 MB). Lançamento registrado sem comprovante.', 'warning');
@@ -5564,11 +5569,12 @@ async function executarUpload() {
 
     // Adiciona card dinâmico à grade de documentos
     adicionarCardDocumento({
+      id:        (result.data && result.data.id) ? result.data.id : null,
       nome:      nomeExibicao,
       categoria,
       descricao,
       tamanho:   (file.size / 1024).toFixed(1) + ' KB',
-      url:       result.url || null,
+      url:       (result.data && result.data.url) ? result.data.url : null,
       mimeType:  file.type,
       data:      new Date().toISOString().split('T')[0],
     });
@@ -5584,11 +5590,10 @@ async function executarUpload() {
   }
 }
 
-function adicionarCardDocumento({ nome, categoria, descricao, tamanho, url, mimeType, data }) {
+function adicionarCardDocumento({ id, nome, categoria, descricao, tamanho, url, mimeType, data }) {
   const area = document.getElementById('docs-dynamic-area');
   if (!area) return;
 
-  // Garante que existe uma grid na área dinâmica
   let grid = area.querySelector('.grid');
   if (!grid) {
     grid = document.createElement('div');
@@ -5618,22 +5623,142 @@ function adicionarCardDocumento({ nome, categoria, descricao, tamanho, url, mime
   const card = document.createElement('div');
   card.className = 'doc-card card';
   card.setAttribute('data-nome', nome.toLowerCase());
-  card.setAttribute('data-cat', categoria);
+  card.setAttribute('data-cat',  categoria);
+  card.setAttribute('data-url',  url || '');
+  if (id) card.setAttribute('data-id', id);
   card.style.cssText = 'text-align:center;cursor:pointer;transition:all .2s;position:relative';
   card.onmouseover = () => card.style.transform = 'translateY(-4px)';
   card.onmouseout  = () => card.style.transform = '';
+
   card.innerHTML = `
     <span class="badge ${badgeCls}" style="font-size:9px;position:absolute;top:8px;right:8px">${esc(categoria)}</span>
+    <button class="admin-only" onclick="event.stopPropagation();editarDocDinamico(this.closest('.doc-card'))"
+      title="Editar documento"
+      style="position:absolute;top:6px;left:6px;background:var(--bg3);border:1px solid var(--border2);
+             color:var(--text2);border-radius:6px;width:26px;height:26px;cursor:pointer;
+             display:flex;align-items:center;justify-content:center;font-size:11px;transition:all .2s"
+      onmouseover="this.style.color='var(--teal)';this.style.borderColor='var(--teal)'"
+      onmouseout="this.style.color='var(--text2)';this.style.borderColor='var(--border2)'">
+      <i class="fas fa-pen"></i>
+    </button>
     <i class="fas ${tipo.icon}" style="font-size:36px;color:${tipo.cor};margin-bottom:12px;margin-top:8px"></i>
-    <div style="font-size:13px;font-weight:600">${esc(nome)}</div>
-    <div style="font-size:11px;color:var(--text3);margin-top:4px">${tamanho} • ${data}</div>
-    ${descricao ? `<div style="font-size:11px;color:var(--text3);margin-top:6px;font-style:italic">${esc(descricao)}</div>` : ''}
+    <div class="doc-dyn-nome" style="font-size:13px;font-weight:600">${esc(nome)}</div>
+    <div class="doc-dyn-tamanho" style="font-size:11px;color:var(--text3);margin-top:4px">${esc(tamanho)} • ${esc(data)}</div>
+    ${descricao ? `<div class="doc-dyn-desc" style="font-size:11px;color:var(--text3);margin-top:6px;font-style:italic">${esc(descricao)}</div>` : '<div class="doc-dyn-desc" style="display:none"></div>'}
+    ${url ? '<div style="font-size:10px;color:var(--sage);margin-top:6px"><i class="fas fa-link"></i> Drive vinculado</div>' : '<div class="doc-dyn-nolink" style="font-size:10px;color:var(--gold);margin-top:6px"><i class="fas fa-exclamation-triangle"></i> Sem link</div>'}
   `;
+
   card.onclick = () => {
-    if (url) window.open(url, '_blank');
-    else showToast(`"${nome}" ainda não possui link vinculado no Drive.`, 'info');
+    const u = card.getAttribute('data-url') || '';
+    if (u && u.startsWith('http')) window.open(u, '_blank', 'noopener');
+    else if (isAdmin()) showToast(`"${nome}" sem link. Clique em ✏️ para vincular.`, 'info');
+    else showToast(`"${nome}" ainda não está disponível para download.`, 'info');
   };
+
   grid.prepend(card);
+}
+
+// ── Editar documento dinâmico (upado via Drive) ────────────────────────────
+
+let _editDocDynCard = null;
+
+function editarDocDinamico(card) {
+  if (!requireAdmin('editar documentos')) return;
+  _editDocDynCard = card;
+
+  const nome    = card.querySelector('.doc-dyn-nome')?.textContent  || '';
+  const cat     = card.getAttribute('data-cat')  || 'Geral';
+  const url     = card.getAttribute('data-url')  || '';
+  const tamanho = card.querySelector('.doc-dyn-tamanho')?.textContent.split('•')[0]?.trim() || '';
+  const descEl  = card.querySelector('.doc-dyn-desc');
+  const desc    = descEl ? descEl.textContent.trim() : '';
+
+  document.getElementById('edit-doc-static-nome').value    = nome;
+  document.getElementById('edit-doc-static-tamanho').value = tamanho;
+  document.getElementById('edit-doc-static-url').value     = url;
+
+  const descArea = document.getElementById('edit-doc-static-desc');
+  if (descArea) descArea.value = desc;
+
+  const catSel = document.getElementById('edit-doc-static-cat');
+  for (let opt of catSel.options) {
+    if (opt.value === cat || opt.text === cat) { catSel.value = opt.value; break; }
+  }
+
+  _atualizarPreviewDocStatic(url);
+  document.getElementById('edit-doc-static-url').oninput = function() {
+    _atualizarPreviewDocStatic(this.value.trim());
+  };
+
+  // Troca o botão salvar para modo dinâmico
+  const btnSalvar = document.querySelector('#modal-edit-doc-static .btn-primary');
+  if (btnSalvar) {
+    btnSalvar._origOnclick = btnSalvar.onclick;
+    btnSalvar.onclick = () => salvarDocDinamico();
+  }
+
+  openModal('modal-edit-doc-static');
+}
+
+async function salvarDocDinamico() {
+  const card = _editDocDynCard;
+  if (!card) return;
+
+  const nome    = document.getElementById('edit-doc-static-nome').value.trim();
+  const cat     = document.getElementById('edit-doc-static-cat').value;
+  const url     = document.getElementById('edit-doc-static-url').value.trim();
+  const tamanho = document.getElementById('edit-doc-static-tamanho').value.trim();
+  const descEl  = document.getElementById('edit-doc-static-desc');
+  const desc    = descEl ? descEl.value.trim() : '';
+
+  if (!nome) { showToast('Informe o nome do documento.', 'warning'); return; }
+
+  const btnSalvar = document.querySelector('#modal-edit-doc-static .btn-primary');
+  if (btnSalvar) { btnSalvar.disabled = true; btnSalvar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando…'; }
+
+  try {
+    const docId = card.getAttribute('data-id');
+    if (docId) {
+      await apiPost({ action: 'update', sheet: 'Documentos', id: docId,
+        row: { fileName: nome, categoria: cat, url, tamanho, descricao: desc } });
+    }
+
+    // Atualiza o card visualmente
+    card.setAttribute('data-nome', nome.toLowerCase());
+    card.setAttribute('data-cat',  cat);
+    card.setAttribute('data-url',  url);
+
+    const nomeEl = card.querySelector('.doc-dyn-nome');
+    if (nomeEl) nomeEl.textContent = nome;
+
+    const tamEl = card.querySelector('.doc-dyn-tamanho');
+    if (tamEl) tamEl.textContent = tamanho + ' • ' + (tamEl.textContent.split('•')[1] || '').trim();
+
+    const dEl = card.querySelector('.doc-dyn-desc');
+    if (dEl) { dEl.textContent = desc; dEl.style.display = desc ? '' : 'none'; }
+
+    const noLink = card.querySelector('.doc-dyn-nolink');
+    if (noLink) noLink.style.display = (url && url.startsWith('http')) ? 'none' : '';
+
+    // Atualiza badge
+    const badgeMap = { Ata:'lav', Financeiro:'gold', Regulamento:'teal', Marketing:'lav',
+                       Pesquisa:'teal', 'Extensão':'sage', Ensino:'sage', Imagem:'lav', Geral:'sage' };
+    const badge = card.querySelector('.badge');
+    if (badge) { badge.className = 'badge ' + (badgeMap[cat] || 'teal'); badge.textContent = cat; }
+
+    closeModal('modal-edit-doc-static');
+    showToast(`"${nome}" atualizado com sucesso!`, 'success');
+  } catch(e) {
+    showToast('Erro ao salvar: ' + e.message, 'error');
+  } finally {
+    if (btnSalvar) {
+      btnSalvar.disabled = false;
+      btnSalvar.innerHTML = '<i class="fas fa-save"></i> Salvar alterações';
+      // Restaura onclick original para docs estáticos
+      if (btnSalvar._origOnclick) btnSalvar.onclick = btnSalvar._origOnclick;
+    }
+    _editDocDynCard = null;
+  }
 }
 
 // ── Carrega documentos salvos via API (sheet: Documentos) ──
@@ -5656,6 +5781,7 @@ async function loadDocumentos() {
       .sort((a, b) => new Date(b.dataUpload || b.Data || 0) - new Date(a.dataUpload || a.Data || 0))
       .forEach(doc => {
         adicionarCardDocumento({
+          id:        doc.id        || null,
           nome:      doc.fileName || doc.Nome || 'Arquivo',
           categoria: doc.categoria || doc.Categoria || 'Geral',
           descricao: doc.descricao || doc.Descricao || '',
