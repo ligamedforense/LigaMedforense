@@ -4204,23 +4204,274 @@ async function loadTesouraria() {
 //  LOADER — AGENDA
 // ══════════════════════════════════════════════════════════════
 
+// ── Mapeia origem → metadados visuais para o calendário integrado ──
+const _origemCal = {
+  'Evento':        { cor: 'var(--teal)',     icone: 'fa-calendar-check',  badge: 'teal'  },
+  'Reunião':       { cor: 'var(--lavender)', icone: 'fa-users',            badge: 'lav'   },
+  'Prazo':         { cor: 'var(--coral)',    icone: 'fa-exclamation-circle',badge: 'coral' },
+  'Pesquisa':      { cor: 'var(--gold)',     icone: 'fa-microscope',       badge: 'gold'  },
+  'Extensão':      { cor: 'var(--sage)',     icone: 'fa-hands-helping',    badge: 'sage'  },
+  'Ensino':        { cor: '#a78bfa',         icone: 'fa-graduation-cap',   badge: 'lav'   },
+  'Marketing':     { cor: '#f97316',         icone: 'fa-bullhorn',         badge: 'gold'  },
+  'Financeiro':    { cor: 'var(--sage)',     icone: 'fa-wallet',           badge: 'sage'  },
+  'Ouvidoria':     { cor: 'var(--coral)',    icone: 'fa-comment-dots',     badge: 'coral' },
+  'Correspondência':{ cor: 'var(--sky)',     icone: 'fa-envelope',         badge: 'sky'   },
+};
+
+function _corOrigem(origem) {
+  const o = _origemCal[origem] || _origemCal['Evento'];
+  return { bg: o.cor + '22', bd: o.cor + '66', fg: o.cor, badge: o.badge, icone: o.icone };
+}
+
+/**
+ * Coleta compromissos e pendências de TODAS as abas e retorna
+ * um array de objetos com o mesmo formato de Eventos para o calendário.
+ */
+async function _coletarTodosCompromissos() {
+  const compromissos = [];
+  const hoje = new Date(); hoje.setHours(0,0,0,0);
+
+  // ── 1. Atas de Reunião (Secretaria) ──────────────────────────
+  try {
+    const atas = await apiGet({ action: 'getAll', sheet: 'Atas' });
+    if (atas) {
+      atas.forEach(a => {
+        if (!a.Data) return;
+        const pendente = (a.Status === 'Pendente assinatura' || a.Status === 'Rascunho');
+        compromissos.push({
+          Data:       a.Data,
+          Titulo:     `📝 ${a.Titulo || ('Ata ' + (a.Tipo||''))}${pendente ? ' ⚠️ Pendente' : ''}`,
+          HoraInicio: a.Horario || '',
+          HoraFim:    '',
+          Local:      'Reunião',
+          Responsavel:'Secretaria',
+          Tipo:       'Reunião',
+          _origem:    'Reunião',
+          _pendente:  pendente,
+          _source:    'secretaria',
+        });
+      });
+    }
+  } catch(_) {}
+
+  // ── 2. Pesquisas — prazo de entregas/etapas ───────────────────
+  try {
+    const pesqs = await apiGet({ action: 'getAll', sheet: 'Pesquisas' });
+    if (pesqs) {
+      pesqs.forEach(p => {
+        if (!p.DataPrazo && !p.DataInicio) return;
+        const dt = p.DataPrazo || p.DataInicio;
+        const status = p.Status || '';
+        if (status === 'Publicado') return; // já concluído
+        compromissos.push({
+          Data:       dt,
+          Titulo:     `🔬 ${p.Titulo || 'Pesquisa'} — ${status}`,
+          HoraInicio: '',
+          HoraFim:    '',
+          Local:      'Pesquisa',
+          Responsavel: p.Responsavel || 'Pesquisa',
+          Tipo:       'Pesquisa',
+          _origem:    'Pesquisa',
+          _pendente:  true,
+          _source:    'pesquisa',
+        });
+      });
+    }
+  } catch(_) {}
+
+  // ── 3. Ações de Extensão ────────────────────────────────────
+  try {
+    const exts = await apiGet({ action: 'getAll', sheet: 'Extensao' });
+    if (exts) {
+      exts.forEach(e => {
+        if (!e.Data) return;
+        compromissos.push({
+          Data:       e.Data,
+          Titulo:     `🤝 ${e.Titulo || e.Nome || 'Ação de Extensão'}`,
+          HoraInicio: e.HoraInicio || '',
+          HoraFim:    e.HoraFim    || '',
+          Local:      e.Local || 'Extensão',
+          Responsavel: e.Responsavel || 'Extensão',
+          Tipo:       'Extensão',
+          _origem:    'Extensão',
+          _pendente:  false,
+          _source:    'extensao',
+        });
+      });
+    }
+  } catch(_) {}
+
+  // ── 4. Cursos de Ensino ─────────────────────────────────────
+  try {
+    const cursos = await apiGet({ action: 'getAll', sheet: 'Ensino' });
+    if (cursos) {
+      cursos.forEach(c => {
+        if (!c.DataInicio) return;
+        const status = c.Status || '';
+        if (status === 'Encerrado') return;
+        compromissos.push({
+          Data:       c.DataInicio,
+          Titulo:     `🎓 ${c.Titulo || c.Nome || 'Curso'}`,
+          HoraInicio: c.Horario || '',
+          HoraFim:    '',
+          Local:      c.Local || c.Modalidade || 'Ensino',
+          Responsavel: c.Responsavel || 'Ensino',
+          Tipo:       'Ensino',
+          _origem:    'Ensino',
+          _pendente:  false,
+          _source:    'ensino',
+        });
+        if (c.DataFim) {
+          compromissos.push({
+            Data:       c.DataFim,
+            Titulo:     `🎓 Fim: ${c.Titulo || c.Nome || 'Curso'}`,
+            HoraInicio: '',
+            HoraFim:    '',
+            Local:      c.Local || 'Ensino',
+            Responsavel: c.Responsavel || 'Ensino',
+            Tipo:       'Ensino',
+            _origem:    'Ensino',
+            _pendente:  false,
+            _source:    'ensino',
+          });
+        }
+      });
+    }
+  } catch(_) {}
+
+  // ── 5. Tarefas de Marketing com prazo ─────────────────────
+  try {
+    const tarefas = await apiGet({ action: 'getAll', sheet: 'TarefasMarketing' });
+    if (tarefas) {
+      tarefas.forEach(t => {
+        if (!t.Prazo) return;
+        const status = t.Status || '';
+        if (status === 'Publicado') return;
+        const atrasada = new Date(t.Prazo + 'T00:00:00') < hoje;
+        compromissos.push({
+          Data:       t.Prazo,
+          Titulo:     `📣 ${t.Titulo || 'Tarefa'} (${status})${atrasada ? ' ⚠️' : ''}`,
+          HoraInicio: '',
+          HoraFim:    '',
+          Local:      'Marketing',
+          Responsavel: t.Responsavel || 'Marketing',
+          Tipo:       'Marketing',
+          _origem:    'Marketing',
+          _pendente:  atrasada,
+          _source:    'marketing',
+        });
+      });
+    }
+  } catch(_) {}
+
+  // ── 6. Prazo de prestação de contas (Financeiro) ──────────
+  try {
+    const cfgs = await _carregarConfiguracoes();
+    const prazo = cfgs['prazo_prestacao_contas']?.valor;
+    if (prazo) {
+      compromissos.push({
+        Data:       prazo,
+        Titulo:     '💰 Prazo: Prestação de Contas',
+        HoraInicio: '',
+        HoraFim:    '',
+        Local:      'Tesouraria',
+        Responsavel: 'Tesouraria',
+        Tipo:       'Financeiro',
+        _origem:    'Financeiro',
+        _pendente:  true,
+        _source:    'tesouraria',
+      });
+    }
+  } catch(_) {}
+
+  // ── 7. Correspondências com prazo/data ────────────────────
+  try {
+    const corrs = await apiGet({ action: 'getAll', sheet: 'Correspondencias' });
+    if (corrs) {
+      corrs.forEach(c => {
+        if (!c.Data) return;
+        if (c.Status === 'Arquivada' || c.Status === 'Resolvida') return;
+        compromissos.push({
+          Data:       c.Data,
+          Titulo:     `✉️ ${c.Assunto || 'Correspondência'} (${c.Direcao || ''})`,
+          HoraInicio: '',
+          HoraFim:    '',
+          Local:      'Secretaria',
+          Responsavel:'Secretaria',
+          Tipo:       'Correspondência',
+          _origem:    'Correspondência',
+          _pendente:  (c.Status !== 'Respondida'),
+          _source:    'secretaria',
+        });
+      });
+    }
+  } catch(_) {}
+
+  // ── 8. Ouvidoria — pendências com data ────────────────────
+  try {
+    const ouv = await apiGet({ action: 'getAll', sheet: 'Ouvidoria' });
+    if (ouv) {
+      ouv.filter(o => o.Data && o.Status !== 'Resolvido').forEach(o => {
+        compromissos.push({
+          Data:       o.Data.substring(0,10),
+          Titulo:     `📬 Ouvidoria: ${o.Tipo || 'Manifestação'} — ${o.Status || 'Pendente'}`,
+          HoraInicio: '',
+          HoraFim:    '',
+          Local:      'Ouvidoria',
+          Responsavel:'Ouvidoria',
+          Tipo:       'Ouvidoria',
+          _origem:    'Ouvidoria',
+          _pendente:  true,
+          _source:    'ouvidoria',
+        });
+      });
+    }
+  } catch(_) {}
+
+  return compromissos;
+}
+
 async function loadAgenda() {
   const container = document.getElementById('agenda-list-container');
   if (!container) return;
-  setLoadingMsg('agenda-list-container', 'Carregando eventos…');
+  setLoadingMsg('agenda-list-container', 'Carregando eventos e compromissos…');
 
   try {
-    const data = await apiGet({ action: 'getAll', sheet: 'Eventos' });
+    // Busca eventos oficiais da agenda
+    const evData = await apiGet({ action: 'getAll', sheet: 'Eventos' });
+    const eventosOficiais = (evData || []).map(e => ({ ...e, _origem: 'Evento', _source: 'agenda' }));
 
-    if (!data || data.length === 0) {
-      setEmptyMsg('agenda-list-container', 'fa-calendar-alt', 'Nenhum evento cadastrado ainda.');
-      renderCalendar(_calYear, _calMonth, []); // garante calendário vazio renderizado
+    // Coleta compromissos de todas as abas em paralelo
+    const compromissos = await _coletarTodosCompromissos();
+
+    // Une tudo para o calendário
+    const todosCal = [...eventosOficiais, ...compromissos];
+    renderCalendar(_calYear, _calMonth, todosCal);
+
+    // A lista de eventos mostra apenas os eventos oficiais (+ os com data de outras abas)
+    const todosLista = todosCal
+      .filter(e => e.Data)
+      .sort((a,b) => new Date(a.Data) - new Date(b.Data));
+
+    if (todosLista.length === 0) {
+      setEmptyMsg('agenda-list-container', 'fa-calendar-alt', 'Nenhum evento ou compromisso cadastrado ainda.');
       return;
     }
 
-    container.innerHTML = data
-      .sort((a,b) => new Date(a.Data) - new Date(b.Data))
-      .map(ev => {
+    // Agrupa por origem para mostrar na lista
+    const grupos = {};
+    todosLista.forEach(ev => {
+      const origem = ev._origem || 'Evento';
+      if (!grupos[origem]) grupos[origem] = [];
+      grupos[origem].push(ev);
+    });
+
+    let html = '';
+
+    // Primeiro mostra eventos da Agenda
+    if (grupos['Evento'] && grupos['Evento'].length > 0) {
+      html += `<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:var(--text3);margin-bottom:12px;display:flex;align-items:center;gap:8px"><i class="fas fa-calendar-check" style="color:var(--teal)"></i> Eventos da Liga</div>`;
+      grupos['Evento'].forEach(ev => {
         const d = new Date((ev.Data || '2026-01-01') + 'T00:00:00');
         const mes = d.toLocaleString('pt-BR',{month:'short'}).toUpperCase().replace('.','');
         const dia = d.getDate();
@@ -4229,17 +4480,17 @@ async function loadAgenda() {
           ? `<button class="btn btn-outline btn-sm" onclick="editEvento('${esc(ev.ID)}')"><i class="fas fa-edit"></i></button>
              <button class="btn btn-outline btn-sm" style="color:var(--coral)" onclick="deleteEvento('${esc(ev.ID)}','${esc(ev.Titulo)}')"><i class="fas fa-trash"></i></button>`
           : '';
-        return `<div class="card gap-20" style="margin-bottom:16px">
+        html += `<div class="card gap-20" style="margin-bottom:12px">
           <div style="display:flex;gap:12px;align-items:center">
             <div style="background:${cor.bg};border:1px solid ${cor.bd};border-radius:12px;padding:10px 20px;text-align:center;flex-shrink:0">
               <div style="font-size:10px;color:${cor.fg};text-transform:uppercase;letter-spacing:1px">${mes}</div>
-              <div style="font-family:'Playfair Display',serif;font-size:28px;font-weight:700;color:${cor.fg}">${dia}</div>
+              <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;font-weight:700;color:${cor.fg}">${dia}</div>
             </div>
             <div style="flex:1">
-              <div style="font-size:16px;font-weight:700;margin-bottom:4px">${esc(ev.Titulo)}</div>
+              <div style="font-size:15px;font-weight:700;margin-bottom:4px">${esc(ev.Titulo)}</div>
               <div style="font-size:13px;color:var(--text2)">
-                <i class="fas fa-clock"></i> ${esc(ev.HoraInicio)}–${esc(ev.HoraFim)}
-                &nbsp;|&nbsp;<i class="fas fa-map-marker-alt"></i> ${esc(ev.Local)}
+                <i class="fas fa-clock"></i> ${esc(ev.HoraInicio||'—')}${ev.HoraFim?'–'+esc(ev.HoraFim):''}
+                &nbsp;|&nbsp;<i class="fas fa-map-marker-alt"></i> ${esc(ev.Local||'—')}
                 ${ev.Responsavel ? `&nbsp;|&nbsp;<i class="fas fa-user"></i> ${esc(ev.Responsavel)}` : ''}
               </div>
             </div>
@@ -4249,14 +4500,55 @@ async function loadAgenda() {
             </div>
           </div>
         </div>`;
-      }).join('');
+      });
+    }
 
-    // Atualiza também o mini-calendário com os dados carregados
-    renderCalendar(_calYear, _calMonth, data);
+    // Depois mostra compromissos das outras abas agrupados
+    const outrasOrigem = Object.keys(grupos).filter(k => k !== 'Evento');
+    outrasOrigem.forEach(origem => {
+      const evs = grupos[origem];
+      if (!evs.length) return;
+      const meta = _origemCal[origem] || _origemCal['Evento'];
+      const temPendente = evs.some(e => e._pendente);
+      html += `<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:var(--text3);margin:20px 0 12px;display:flex;align-items:center;gap:8px">
+        <i class="fas ${meta.icone}" style="color:${meta.cor}"></i> ${origem}
+        ${temPendente ? `<span class="badge coral" style="font-size:9px;padding:2px 6px"><i class="fas fa-exclamation-triangle"></i> pendência</span>` : ''}
+      </div>`;
+      evs.forEach(ev => {
+        const d = new Date((ev.Data || '2026-01-01') + 'T00:00:00');
+        const mes = d.toLocaleString('pt-BR',{month:'short'}).toUpperCase().replace('.','');
+        const dia = d.getDate();
+        const co = _corOrigem(origem);
+        const passou = d < new Date() && ev._pendente;
+        html += `<div class="card" style="margin-bottom:10px;border-left:3px solid ${co.fg};${passou ? 'border-color:var(--coral)' : ''}">
+          <div style="display:flex;gap:12px;align-items:center">
+            <div style="background:${co.bg};border:1px solid ${co.bd};border-radius:10px;padding:8px 16px;text-align:center;flex-shrink:0;min-width:56px">
+              <div style="font-size:9px;color:${co.fg};text-transform:uppercase;letter-spacing:1px">${mes}</div>
+              <div style="font-family:'Bebas Neue',sans-serif;font-size:24px;font-weight:700;color:${co.fg}">${dia}</div>
+            </div>
+            <div style="flex:1">
+              <div style="font-size:14px;font-weight:600;margin-bottom:3px">${esc(ev.Titulo)}</div>
+              <div style="font-size:12px;color:var(--text3)">
+                ${ev.HoraInicio ? `<i class="fas fa-clock"></i> ${esc(ev.HoraInicio)} &nbsp;` : ''}
+                ${ev.Local && ev.Local !== origem ? `<i class="fas fa-map-marker-alt"></i> ${esc(ev.Local)} &nbsp;` : ''}
+                ${ev.Responsavel ? `<i class="fas fa-user"></i> ${esc(ev.Responsavel)}` : ''}
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+              <span class="badge ${co.badge}" style="font-size:10px">${origem}</span>
+              ${passou ? '<span class="badge coral" style="font-size:9px"><i class="fas fa-clock"></i> Atrasado</span>' : ''}
+              ${ev._pendente && !passou ? '<span class="badge gold" style="font-size:9px"><i class="fas fa-exclamation"></i> Pendente</span>' : ''}
+            </div>
+          </div>
+        </div>`;
+      });
+    });
+
+    container.innerHTML = html;
 
   } catch(e) {
     setEmptyMsg('agenda-list-container', 'fa-exclamation-circle', 'Erro ao carregar agenda.');
-    renderCalendar(_calYear, _calMonth, []); // garante calendário vazio mesmo em caso de erro
+    renderCalendar(_calYear, _calMonth, []);
   }
 }
 
@@ -6259,7 +6551,6 @@ function mostrarEventosDia(dateStr) {
   const evs = _calEventos.filter(e => (e.Data || '').substring(0,10) === dateStr);
   if (!evs.length) return;
 
-  // Remove modal anterior se existir
   const old = document.getElementById('modal-eventos-dia');
   if (old) old.remove();
 
@@ -6268,30 +6559,37 @@ function mostrarEventosDia(dateStr) {
   overlay.className = 'modal-overlay open';
   overlay.style.zIndex = '9999';
   overlay.innerHTML = `
-    <div class="modal" style="max-width:420px">
+    <div class="modal" style="max-width:480px">
       <div class="modal-header">
-        <div class="modal-title"><i class="fas fa-calendar-day" style="color:var(--teal);margin-right:8px"></i>Eventos em ${formatDate(dateStr)}</div>
+        <div class="modal-title"><i class="fas fa-calendar-day" style="color:var(--teal);margin-right:8px"></i>Compromissos em ${formatDate(dateStr)}</div>
         <button class="modal-close" onclick="document.getElementById('modal-eventos-dia').remove()"><i class="fas fa-times"></i></button>
       </div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:12px">${evs.length} compromisso(s) neste dia</div>
       ${evs.map(e => {
-        const cor = setorCor(e.Tipo);
+        const origem = e._origem || e.Tipo || 'Evento';
+        const meta = _origemCal[origem] || { cor: 'var(--teal)', icone: 'fa-calendar-check' };
+        const cor = { bg: meta.cor + '22', bd: meta.cor + '55', fg: meta.cor };
         return `<div style="display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-bottom:1px solid var(--border)">
-          <div style="width:36px;height:36px;border-radius:8px;background:${cor.bg};border:1px solid ${cor.bd};display:flex;align-items:center;justify-content:center;flex-shrink:0">
-            <i class="fas fa-calendar-check" style="color:${cor.fg};font-size:13px"></i>
+          <div style="width:38px;height:38px;border-radius:10px;background:${cor.bg};border:1px solid ${cor.bd};display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <i class="fas ${meta.icone}" style="color:${meta.cor};font-size:14px"></i>
           </div>
-          <div>
-            <div style="font-size:14px;font-weight:600">${esc(e.Titulo)}</div>
-            <div style="font-size:12px;color:var(--text3);margin-top:2px">
+          <div style="flex:1">
+            <div style="font-size:13px;font-weight:600;margin-bottom:3px">${esc(e.Titulo)}</div>
+            <div style="font-size:11px;color:var(--text3)">
               ${e.HoraInicio ? `<i class="fas fa-clock"></i> ${esc(e.HoraInicio)}${e.HoraFim ? '–'+esc(e.HoraFim) : ''}&nbsp; ` : ''}
-              ${e.Local ? `<i class="fas fa-map-marker-alt"></i> ${esc(e.Local)}` : ''}
+              ${e.Local && e.Local !== origem ? `<i class="fas fa-map-marker-alt"></i> ${esc(e.Local)}&nbsp; ` : ''}
+              ${e.Responsavel ? `<i class="fas fa-user"></i> ${esc(e.Responsavel)}` : ''}
             </div>
           </div>
-          <span class="badge ${cor.badge}" style="margin-left:auto;flex-shrink:0">${esc(e.Tipo || '—')}</span>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+            <span style="font-size:9px;font-weight:600;padding:2px 8px;border-radius:20px;background:${cor.bg};color:${meta.cor};border:1px solid ${cor.bd}">${origem}</span>
+            ${e._pendente ? '<span style="font-size:9px;color:var(--coral);font-weight:600"><i class="fas fa-exclamation-triangle"></i> Pendente</span>' : ''}
+          </div>
         </div>`;
       }).join('')}
       <div class="modal-footer" style="margin-top:12px">
         <button class="btn btn-outline" onclick="document.getElementById('modal-eventos-dia').remove()">Fechar</button>
-        <button class="btn btn-primary btn-sm" onclick="document.getElementById('modal-eventos-dia').remove();showPage('agenda')"><i class="fas fa-calendar-alt"></i> Ver agenda</button>
+        <button class="btn btn-primary btn-sm" onclick="document.getElementById('modal-eventos-dia').remove();showPage('agenda')"><i class="fas fa-calendar-alt"></i> Ver agenda completa</button>
       </div>
     </div>`;
   overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
@@ -6639,67 +6937,129 @@ function _renderCalMonth(container) {
     }
   });
 
+  // Descobre quais categorias existem para a legenda
+  const categoriasPresentes = [...new Set((_calEventos||[]).map(e => e._origem || e.Tipo || 'Evento'))];
+
+  // Legenda de categorias
+  const legendaHTML = categoriasPresentes.length > 1 ? `
+    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;padding:10px 14px;background:var(--bg3);border-radius:10px;border:1px solid var(--border)">
+      <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text3);align-self:center">Legenda:</span>
+      ${categoriasPresentes.map(cat => {
+        const meta = _origemCal[cat] || { cor: 'var(--teal)', icone: 'fa-calendar' };
+        return `<span style="display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:600;padding:3px 9px;border-radius:20px;background:${meta.cor}22;color:${meta.cor};border:1px solid ${meta.cor}44">
+          <i class="fas ${meta.icone}" style="font-size:9px"></i>${cat}
+        </span>`;
+      }).join('')}
+    </div>` : '';
+
   let html = `
+    ${legendaHTML}
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
       <button class="btn btn-outline btn-sm" onclick="renderCalendar(${_calMonth===0?_calYear-1:_calYear},${_calMonth===0?11:_calMonth-1})">
         <i class="fas fa-chevron-left"></i>
       </button>
-      <div style="font-family:'Syne',sans-serif;font-size:17px;font-weight:700">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:20px;font-weight:700;letter-spacing:2px">
         ${meses[_calMonth]} ${_calYear}
       </div>
       <button class="btn btn-outline btn-sm" onclick="renderCalendar(${_calMonth===11?_calYear+1:_calYear},${_calMonth===11?0:_calMonth+1})">
         <i class="fas fa-chevron-right"></i>
       </button>
     </div>
-    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center;margin-bottom:8px">
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;text-align:center;margin-bottom:6px">
       ${['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'].map(d =>
         `<div style="font-size:11px;font-weight:600;color:var(--text3);padding:4px">${d}</div>`
       ).join('')}
     </div>
-    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px">`;
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px">`;
 
-  for (let i = 0; i < diaSemana; i++) html += `<div style="min-height:44px"></div>`;
+  for (let i = 0; i < diaSemana; i++) html += `<div style="min-height:52px"></div>`;
 
   for (let dia = 1; dia <= ultimo.getDate(); dia++) {
     const dateStr = `${_calYear}-${String(_calMonth+1).padStart(2,'0')}-${String(dia).padStart(2,'0')}`;
     const evsDia  = eventosPorDia[dateStr] || [];
     const isHoje  = dia === hoje.getDate() && _calMonth === hoje.getMonth() && _calYear === hoje.getFullYear();
     const temEv   = evsDia.length > 0;
-    const cellStyle = isHoje
-      ? 'background:var(--teal);color:var(--bg);border-radius:8px;font-weight:700'
-      : temEv
-        ? 'background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.25);border-radius:8px;color:var(--teal);font-weight:600'
-        : 'border-radius:8px';
-    const tooltip = temEv ? evsDia.map(e => e.Titulo).join(', ').substring(0, 60) : '';
+    const temPendente = evsDia.some(e => e._pendente);
 
-    html += `<div style="min-height:44px;padding:6px 4px;text-align:center;cursor:pointer;${cellStyle};transition:.15s"
+    // Cores base por status do dia
+    let cellBg = '', cellBorder = '', cellColor = '', cellFontWeight = '';
+    if (isHoje) {
+      cellBg = 'background:var(--teal);'; cellColor = 'color:var(--bg);'; cellFontWeight = 'font-weight:700;';
+    } else if (temPendente) {
+      cellBg = 'background:rgba(239,68,68,.08);'; cellBorder = 'border:1px solid rgba(239,68,68,.3);'; cellColor = 'color:var(--coral);'; cellFontWeight = 'font-weight:600;';
+    } else if (temEv) {
+      cellBg = 'background:rgba(251,191,36,.08);'; cellBorder = 'border:1px solid rgba(251,191,36,.2);'; cellColor = 'color:var(--teal);'; cellFontWeight = 'font-weight:600;';
+    }
+
+    // Dots coloridos por categoria (máx 3)
+    const dotsHtml = temEv ? (() => {
+      const origensUnicas = [...new Set(evsDia.map(e => e._origem || e.Tipo || 'Evento'))].slice(0,3);
+      return `<div style="display:flex;justify-content:center;gap:2px;margin-top:3px">
+        ${origensUnicas.map(o => {
+          const meta = _origemCal[o] || { cor: 'var(--teal)' };
+          return `<div style="width:6px;height:6px;border-radius:50%;background:${meta.cor}"></div>`;
+        }).join('')}
+        ${evsDia.length > 3 ? `<div style="font-size:8px;color:var(--text3)">+${evsDia.length-3}</div>` : ''}
+      </div>`;
+    })() : '';
+
+    const tooltip = temEv ? evsDia.map(e => e.Titulo).join(', ').substring(0, 80) : '';
+    const clickFn = temEv ? `mostrarEventosDia('${dateStr}')` : isAdmin() ? `_criarEventoNoDia('${dateStr}')` : '';
+
+    html += `<div style="min-height:52px;padding:5px 3px;text-align:center;cursor:${clickFn?'pointer':'default'};border-radius:8px;${cellBg}${cellBorder}${cellColor}${cellFontWeight}transition:.15s"
          title="${esc(tooltip)}"
-         onclick="${temEv ? `mostrarEventosDia('${dateStr}')` : isAdmin() ? `_criarEventoNoDia('${dateStr}')` : ''}">
+         onclick="${clickFn}">
       <div style="font-size:13px">${dia}</div>
-      ${temEv ? `<div style="font-size:9px;margin-top:2px;overflow:hidden;white-space:nowrap;max-width:36px">● ${evsDia.length}</div>` : ''}
+      ${dotsHtml}
     </div>`;
   }
   html += `</div>`;
 
-  // Próximos eventos
+  // Próximos compromissos (todos, não só eventos)
   if (_calEventos && _calEventos.length > 0) {
+    const hojeDt = new Date(hoje.toDateString());
     const proxEvs = _calEventos
-      .filter(e => e.Data && new Date(e.Data + 'T00:00:00') >= new Date(hoje.toDateString()))
-      .sort((a,b) => new Date(a.Data) - new Date(b.Data)).slice(0, 3);
+      .filter(e => e.Data && new Date(e.Data + 'T00:00:00') >= hojeDt)
+      .sort((a,b) => new Date(a.Data) - new Date(b.Data)).slice(0, 5);
+
     if (proxEvs.length) {
-      html += `<div style="margin-top:18px;border-top:1px solid var(--border);padding-top:14px">
-        <div style="font-size:12px;font-weight:600;color:var(--text3);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px">Próximos eventos</div>`;
+      html += `<div style="margin-top:20px;border-top:1px solid var(--border);padding-top:16px">
+        <div style="font-size:11px;font-weight:700;color:var(--text3);margin-bottom:12px;text-transform:uppercase;letter-spacing:1.5px;display:flex;align-items:center;gap:8px">
+          <i class="fas fa-stream" style="color:var(--teal)"></i> Próximos compromissos
+        </div>`;
       proxEvs.forEach(ev => {
-        const cor = setorCor(ev.Tipo);
+        const origem = ev._origem || ev.Tipo || 'Evento';
+        const meta = _origemCal[origem] || { cor: 'var(--teal)', icone: 'fa-calendar' };
+        const cor = { bg: meta.cor + '22', bd: meta.cor + '55', fg: meta.cor };
         html += `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
-          <div style="width:36px;height:36px;border-radius:8px;background:${cor.bg};border:1px solid ${cor.bd};display:flex;align-items:center;justify-content:center;flex-shrink:0;color:${cor.fg};font-size:12px;font-weight:700">
-            ${new Date(ev.Data+'T00:00:00').getDate()}
+          <div style="width:34px;height:34px;border-radius:8px;background:${cor.bg};border:1px solid ${cor.bd};display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <i class="fas ${meta.icone}" style="color:${meta.cor};font-size:13px"></i>
           </div>
           <div style="flex:1;min-width:0">
-            <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(ev.Titulo)}</div>
-            <div style="font-size:11px;color:var(--text3)">${formatDate(ev.Data)} ${ev.HoraInicio ? '• ' + ev.HoraInicio : ''}</div>
+            <div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(ev.Titulo)}</div>
+            <div style="font-size:10px;color:var(--text3)">${formatDate(ev.Data)}${ev.HoraInicio ? ' • ' + ev.HoraInicio : ''}</div>
           </div>
-          <span class="badge ${cor.badge}">${esc(ev.Tipo)}</span>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px">
+            <span style="font-size:9px;font-weight:600;padding:2px 7px;border-radius:20px;background:${cor.bg};color:${meta.cor};border:1px solid ${cor.bd}">${origem}</span>
+            ${ev._pendente ? '<span style="font-size:9px;color:var(--coral)"><i class="fas fa-exclamation-triangle"></i></span>' : ''}
+          </div>
+        </div>`;
+      });
+      html += `</div>`;
+    }
+
+    // Pendências em destaque
+    const pendencias = _calEventos.filter(e => e._pendente && e.Data && new Date(e.Data+'T00:00:00') < hojeDt);
+    if (pendencias.length > 0) {
+      html += `<div style="margin-top:16px;padding:12px 16px;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);border-radius:10px">
+        <div style="font-size:11px;font-weight:700;color:var(--coral);margin-bottom:8px"><i class="fas fa-exclamation-triangle"></i> Pendências em atraso (${pendencias.length})</div>`;
+      pendencias.slice(0,4).forEach(ev => {
+        const origem = ev._origem || 'Evento';
+        html += `<div style="font-size:12px;color:var(--text2);padding:4px 0;border-bottom:1px solid rgba(239,68,68,.12);display:flex;align-items:center;gap:8px">
+          <i class="fas fa-dot-circle" style="color:var(--coral);font-size:8px"></i>
+          <span style="flex:1">${esc(ev.Titulo)}</span>
+          <span style="font-size:10px;color:var(--text3)">${formatDate(ev.Data)}</span>
+          <span style="font-size:9px;color:var(--coral);font-weight:600">${origem}</span>
         </div>`;
       });
       html += `</div>`;
