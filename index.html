@@ -1587,7 +1587,8 @@ th.sort-desc .sort-icon { opacity: 1; color: var(--teal); }
       <div class="section-title">Marketing & Comunicação</div>
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px">
         <div class="section-sub" style="margin-bottom:0">Gerenciamento de conteúdo, redes sociais, campanhas e identidade visual da LAMF.</div>
-        <button class="btn btn-outline btn-sm admin-only" onclick="editarIndicadoresMkt()" style="white-space:nowrap;margin-left:16px"><i class="fas fa-sliders-h"></i> Editar indicadores</button>
+        <button class="btn btn-outline btn-sm admin-only" onclick="editarIndicadoresMkt()"
+        <button class="btn btn-outline btn-sm admin-only" onclick="exportarRelatorioMkt()" style="margin-left:8px"><i class="fas fa-file-export"></i> Relatório de Marketing</button> style="white-space:nowrap;margin-left:16px"><i class="fas fa-sliders-h"></i> Editar indicadores</button>
       </div>
 
       <div class="grid grid-4 gap-20">
@@ -2480,7 +2481,17 @@ th.sort-desc .sort-icon { opacity: 1; color: var(--teal); }
       <div class="form-group"><label class="form-label">Local</label><input id="edit-evento-local" class="form-input" type="text"></div>
       <div class="form-group"><label class="form-label">Responsável</label><input id="edit-evento-resp" class="form-input" type="text"></div>
     </div>
-    <div class="form-group"><label class="form-label">Descrição</label><textarea id="edit-evento-desc" class="form-textarea"></textarea></div>
+    <div class="form-group"><label class="form-label">Descrição</label><textarea id="edit-evento-desc" class="form-textarea"><div class="form-row" style="margin-top:8px">
+  <div class="form-group">
+    <label class="form-label">Status do Evento</label>
+    <select id="edit-evento-status" class="form-select">
+      <option value="Confirmado">Confirmado</option>
+      <option value="Concluído">Concluído</option>
+      <option value="Adiado">Adiado</option>
+      <option value="Cancelado">Cancelado</option>
+    </select>
+  </div>
+</div></textarea></div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('modal-edit-evento')">Cancelar</button>
       <button class="btn btn-primary" onclick="salvarEdicaoEvento()"><i class="fas fa-save"></i> Salvar</button>
@@ -4506,30 +4517,34 @@ async function loadAgenda() {
         const mes = d.toLocaleString('pt-BR',{month:'short'}).toUpperCase().replace('.','');
         const dia = d.getDate();
         const cor = setorCor(ev.Tipo);
+        const isConcluido = ev.Status === 'Concluído';
+        const isAdiado = ev.Status === 'Adiado';
+        const cardOpacity = isConcluido ? 'opacity:.6;' : isAdiado ? 'opacity:.85;' : '';
+        const statusBadgeCls = isConcluido ? 'sage' : isAdiado ? 'coral' : cor.badge;
         const editBtn = isAdmin()
-          ? `<button class="btn btn-outline btn-sm" onclick="editEvento('${esc(ev.ID)}')"><i class="fas fa-edit"></i></button>
-             <button class="btn btn-outline btn-sm" style="color:var(--coral)" onclick="deleteEvento('${esc(ev.ID)}','${esc(ev.Titulo)}')"><i class="fas fa-trash"></i></button>`
-          : '';
-        html += `<div class="card gap-20" style="margin-bottom:12px">
-          <div style="display:flex;gap:12px;align-items:center">
-            <div style="background:${cor.bg};border:1px solid ${cor.bd};border-radius:12px;padding:10px 20px;text-align:center;flex-shrink:0">
-              <div style="font-size:10px;color:${cor.fg};text-transform:uppercase;letter-spacing:1px">${mes}</div>
-              <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;font-weight:700;color:${cor.fg}">${dia}</div>
-            </div>
-            <div style="flex:1">
-              <div style="font-size:15px;font-weight:700;margin-bottom:4px">${esc(ev.Titulo)}</div>
-              <div style="font-size:13px;color:var(--text2)">
-                <i class="fas fa-clock"></i> ${esc(ev.HoraInicio||'—')}${ev.HoraFim?'–'+esc(ev.HoraFim):''}
-                &nbsp;|&nbsp;<i class="fas fa-map-marker-alt"></i> ${esc(ev.Local||'—')}
-                ${ev.Responsavel ? `&nbsp;|&nbsp;<i class="fas fa-user"></i> ${esc(ev.Responsavel)}` : ''}
-              </div>
-            </div>
-            <div style="display:flex;gap:8px;align-items:center">
-              <span class="badge ${cor.badge}">${esc(ev.Tipo)}</span>
-              ${editBtn}
-            </div>
-          </div>
-        </div>`;
+? `<button class="btn btn-outline btn-sm" onclick="editEvento('${esc(ev.ID)}')"><i class="fas fa-edit"></i></button>
+   <button class="btn btn-outline btn-sm" style="color:var(--coral)" onclick="deleteEvento('${esc(ev.ID)}','${esc(ev.Titulo)}')"><i class="fas fa-trash"></i></button>`
+: '';
+html += `<div class="card gap-20" style="margin-bottom:12px;${cardOpacity}">
+<div style="display:flex;gap:12px;align-items:center">
+  <div style="background:${cor.bg};border:1px solid ${cor.bd};border-radius:12px;padding:10px 20px;text-align:center;flex-shrink:0">
+    <div style="font-size:10px;color:${cor.fg};text-transform:uppercase;letter-spacing:1px">${mes}</div>
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;font-weight:700;color:${cor.fg}">${dia}</div>
+  </div>
+  <div style="flex:1">
+    <div style="font-size:15px;font-weight:700;margin-bottom:4px">${esc(ev.Titulo)}</div>
+    <div style="font-size:13px;color:var(--text2)">
+      <i class="fas fa-clock"></i> ${esc(ev.HoraInicio||'—')}${ev.HoraFim?'–'+esc(ev.HoraFim):''}
+      &nbsp;|&nbsp;<i class="fas fa-map-marker-alt"></i> ${esc(ev.Local||'—')}
+      ${ev.Responsavel ? `&nbsp;|&nbsp;<i class="fas fa-user"></i> ${esc(ev.Responsavel)}` : ''}
+    </div>
+  </div>
+  <div style="display:flex;gap:8px;align-items:center;flex-direction:column">
+    <span class="badge ${statusBadgeCls}" style="font-size:10px">${ev.Status || ev.Tipo}</span>
+    ${editBtn}
+  </div>
+</div>
+</div>`;
       });
     }
 
@@ -4598,6 +4613,8 @@ async function editEvento(id) {
     document.getElementById('edit-evento-local').value     = ev.Local     || '';
     document.getElementById('edit-evento-resp').value      = ev.Responsavel|| '';
     document.getElementById('edit-evento-desc').value      = ev.Descricao || '';
+    const stSel = document.getElementById('edit-evento-status');
+if (stSel) [...stSel.options].forEach(o => { o.selected = o.value === (ev.Status || 'Confirmado'); });
     const tipSel = document.getElementById('edit-evento-tipo');
     if (tipSel) [...tipSel.options].forEach(o => { o.selected = o.value === ev.Tipo; });
     openModal('modal-edit-evento');
@@ -4617,6 +4634,7 @@ async function salvarEdicaoEvento() {
     Local:      document.getElementById('edit-evento-local').value.trim(),
     Responsavel:document.getElementById('edit-evento-resp').value.trim(),
     Descricao:  document.getElementById('edit-evento-desc').value.trim(),
+    Status: document.getElementById('edit-evento-status').value,
   };
   if (!row.Titulo) { showToast('Informe o título do evento.', 'warning'); return; }
   const btn = modal.querySelector('.btn-primary');
@@ -4867,19 +4885,27 @@ async function loadExtensao() {
             if (b.Status === 'Ativo' && a.Status !== 'Ativo') return 1;
             return (a.Nome || '').localeCompare(b.Nome || '');
           })
-          .map(p => {
-            const delBtn = isAdmin()
-              ? `<button class="btn btn-outline btn-sm" style="color:var(--coral);margin-left:8px;flex-shrink:0" onclick="deleteParceiro('${esc(p.ID)}','${esc(p.Nome)}')"><i class="fas fa-trash"></i></button>`
-              : '';
-            return `<div class="finance-row">
-              <div style="flex:1">
-                <div class="finance-desc">${esc(p.Nome)}</div>
-                <div class="finance-cat">${esc(p.Descricao || p.Area || '—')}</div>
-              </div>
-              <span class="badge ${statusBadge(p.Status)}">${esc(p.Status || '—')}</span>
-              ${delBtn}
-            </div>`;
-          }).join('');
+          .map(ac => {
+  const statusOk = ac.Status === 'Realizado' || ac.Status === 'Concluído';
+  const adminBtns = isAdmin()
+    ? `<div style="display:flex;gap:6px;margin-left:10px;flex-shrink:0">
+        <select class="form-select" style="padding:4px 8px;font-size:11px;height:auto;width:auto" onchange="updateStatusExtensao('${esc(ac.ID)}', this.value)">
+          <option value="Planejado" ${ac.Status==='Planejado'?'selected':''}>Planejado</option>
+          <option value="Em andamento" ${ac.Status==='Em andamento'?'selected':''}>Em andamento</option>
+          <option value="Realizado" ${statusOk?'selected':''}>Realizado</option>
+        </select>
+        <button class="btn btn-outline btn-sm" style="color:var(--coral)" onclick="deleteAcao('${esc(ac.ID)}','${esc(ac.Nome)}')"><i class="fas fa-trash"></i></button>
+       </div>`
+    : '';
+  return `<div class="finance-row">
+    <div style="flex:1">
+      <div class="finance-desc">${esc(ac.Nome)}</div>
+      <div class="finance-cat">${formatDate(ac.Data)} • ${esc(ac.Participantes)} participantes • ${esc(ac.Local)}</div>
+    </div>
+    <span class="badge ${statusBadge(ac.Status)}">${esc(ac.Status)}</span>
+    ${adminBtns}
+  </div>`;
+}).join('');
       }
     }
   } catch(e) { console.warn('loadExtensao:', e); }
@@ -5100,16 +5126,29 @@ async function loadMarketing() {
              <i class="fas fa-trash" style="color:var(--coral)"></i></button>`
         : '';
       card.innerHTML = `
-        <div style="display:flex;align-items:flex-start;justify-content:space-between">
-          <div class="kanban-card-title" style="flex:1">${esc(t.Titulo)}</div>
-          ${editBtn}
-        </div>
-        <div class="kanban-card-meta">
-          <span class="badge ${cor.badge}">${esc(t.Formato || '—')}</span>
-          ${t.Prazo ? ' • ' + formatDate(t.Prazo) : ''}
-          ${t.Responsavel ? `<span style="font-size:10px;color:var(--text3);display:block;margin-top:3px"><i class="fas fa-user"></i> ${esc(t.Responsavel)}</span>` : ''}
-        </div>`;
-      col.appendChild(card);
+<span class="badge ${badgeCls}" style="font-size:9px;position:absolute;top:8px;right:8px">${esc(categoria)}</span>
+<div style="position:absolute;top:6px;left:6px;display:flex;gap:5px;">
+  <button onclick="event.stopPropagation();editarDocDinamico(this.closest('.doc-card'))"
+    title="Editar"
+    style="background:var(--bg3);border:1px solid var(--border2);color:var(--text2);border-radius:6px;width:26px;height:26px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:11px;transition:all .2s"
+    onmouseover="this.style.color='var(--teal)';this.style.borderColor='var(--teal)'"
+    onmouseout="this.style.color='var(--text2)';this.style.borderColor='var(--border2)'">
+    <i class="fas fa-pen"></i>
+  </button>
+  <button onclick="event.stopPropagation();deleteDocumento('${esc(id||'')}', '${esc(nome)}', '${esc(url||'')}')"
+    title="Excluir"
+    style="background:var(--bg3);border:1px solid var(--border2);color:var(--text2);border-radius:6px;width:26px;height:26px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:11px;transition:all .2s"
+    onmouseover="this.style.color='var(--coral)';this.style.borderColor='var(--coral)'"
+    onmouseout="this.style.color='var(--text2)';this.style.borderColor='var(--border2)'">
+    <i class="fas fa-trash"></i>
+  </button>
+</div>
+<i class="fas ${tipo.icon}" style="font-size:36px;color:${tipo.cor};margin-bottom:12px;margin-top:8px"></i>
+<div class="doc-dyn-nome" style="font-size:13px;font-weight:600">${esc(nome)}</div>
+<div class="doc-dyn-tamanho" style="font-size:11px;color:var(--text3);margin-top:4px">${esc(tamanho)} • ${esc(data)}</div>
+${descricao ? `<div class="doc-dyn-desc" style="font-size:11px;color:var(--text3);margin-top:6px;font-style:italic">${esc(descricao)}</div>` : '<div class="doc-dyn-desc" style="display:none"></div>'}
+${url ? '<div style="font-size:10px;color:var(--sage);margin-top:6px"><i class="fas fa-link"></i> Drive vinculado</div>' : '<div class="doc-dyn-nolink" style="font-size:10px;color:var(--gold);margin-top:6px"><i class="fas fa-exclamation-triangle"></i> Sem link</div>'}
+`;
     });
 
     // Atualiza contadores das colunas (API + estáticos)
@@ -8230,6 +8269,63 @@ async function deleteCorrespondencia(id, assunto) {
       } catch(e) { showToast('Erro ao excluir: ' + e.message, 'error'); }
     }
   });
+}
+async function exportarRelatorioMkt() {
+  if (!requireAdmin('exportar relatórios')) return;
+  showToast('Gerando relatório de marketing...', 'info');
+  try {
+    const [tarefas, campanhas] = await Promise.all([
+      apiGet({ action: 'getAll', sheet: 'TarefasMarketing' }),
+      apiGet({ action: 'getAll', sheet: 'Campanhas' })
+    ]);
+    if ((!tarefas || !tarefas.length) && (!campanhas || !campanhas.length)) {
+      showToast('Sem dados para exportar.', 'warning'); return;
+    }
+    const hoje = new Date().toISOString().split('T')[0];
+    let csv = 'Tipo;Titulo;Status;Responsavel;Prazo/Periodo;Detalhes\r\n';
+    if (tarefas) tarefas.forEach(t => {
+      csv += `Tarefa;"${t.Titulo||''}";${t.Status||''};"${t.Responsavel||''}";"${t.Prazo||''}";"${t.Formato||''}"\r\n`;
+    });
+    if (campanhas) campanhas.forEach(c => {
+      csv += `Campanha;"${c.Nome||c.Titulo||''}";${c.Status||''};"${c.Responsavel||''}";"${c.Periodo||''}";"${c.Rede||c.Canal||''}"\r\n`;
+    });
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url;
+    a.download = `LAMF_Relatorio_Marketing_${hoje}.csv`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    showToast('Relatório de Marketing exportado!', 'success');
+  } catch(e) { showToast('Erro ao exportar: ' + e.message, 'error'); }
+}
+async function deleteDocumento(id, nome, url) {
+  if (!requireAdmin('excluir documentos')) return;
+  customConfirm({
+    title: 'Excluir documento',
+    message: `Deseja remover "${nome}"? ${url ? 'O arquivo também será movido para a Lixeira do Google Drive.' : ''} Esta ação não pode ser desfeita.`,
+    confirmLabel: 'Excluir',
+    icon: 'fa-trash',
+    iconColor: 'var(--coral)',
+    onConfirm: async () => {
+      try {
+        // 1. Exclui registro da planilha
+        await apiPost({ action: 'delete', sheet: 'Documentos', id });
+        // 2. Tenta excluir do Drive (se seu Apps Script suportar a action 'deleteDriveFile')
+        if (url && id) {
+          try { await apiPost({ action: 'deleteDriveFile', fileId: id }); } catch(_) {}
+        }
+        showToast('Documento excluído com sucesso.', 'success');
+        loadDocumentos(); // Recarrega a grade
+      } catch(e) { showToast('Erro ao excluir: ' + e.message, 'error'); }
+    }
+  });
+}
+async function updateStatusExtensao(id, newStatus) {
+  if (!requireAdmin('atualizar status')) return;
+  try {
+    await apiPost({ action: 'update', sheet: 'Extensao', id, row: { Status: newStatus } });
+    showToast('Status atualizado!', 'success');
+    loadExtensao(); // Atualiza a lista e os contadores
+  } catch(e) { showToast('Erro ao atualizar: ' + e.message, 'error'); }
 }
 </script>
 </body>
