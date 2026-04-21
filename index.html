@@ -3600,6 +3600,29 @@ function formatDate(val) {
   return isNaN(d) ? String(val) : d.toLocaleDateString('pt-BR');
 }
 
+/**
+ * Formata valores em Guaranis paraguaios (₲) com abreviação automática:
+ *  < 1.000          → ₲ 850
+ *  1.000 – 999.999  → ₲ 1,5 Mil
+ *  ≥ 1.000.000      → ₲ 2,3 Mi
+ *  ≥ 1.000.000.000  → ₲ 1,2 Bi
+ * @param {number} v - valor absoluto ou com sinal
+ * @param {boolean} [abrev=true] - se false, exibe o número completo formatado
+ */
+function fmtGs(v, abrev = true) {
+  const abs = Math.abs(Math.round(v));
+  if (!abrev || abs < 1000) {
+    return '₲ ' + abs.toLocaleString('es-PY');
+  }
+  if (abs < 1_000_000) {
+    return '₲ ' + (abs / 1_000).toLocaleString('es-PY', { minimumFractionDigits: 0, maximumFractionDigits: 1 }) + ' Mil';
+  }
+  if (abs < 1_000_000_000) {
+    return '₲ ' + (abs / 1_000_000).toLocaleString('es-PY', { minimumFractionDigits: 0, maximumFractionDigits: 1 }) + ' Mi';
+  }
+  return '₲ ' + (abs / 1_000_000_000).toLocaleString('es-PY', { minimumFractionDigits: 0, maximumFractionDigits: 1 }) + ' Bi';
+}
+
 function setorCor(setor) {
   const map = {
     'Pesquisa':   {bg:'rgba(251,191,36,.15)',  fg:'var(--teal)',    bd:'rgba(251,191,36,.3)',  badge:'teal'},
@@ -3698,7 +3721,7 @@ async function loadHomeStats() {
           if (isRec) recMes += v; else despMes += v;
         }
       });
-      const fmt = v => '₲ ' + Math.round(Math.abs(v)).toLocaleString('es-PY');
+      const fmt = v => fmtGs(v);
       if (saldoEl)  saldoEl.textContent = fmt(saldo);
       if (saldoChEl) {
         const diff = recMes - despMes;
@@ -4039,8 +4062,11 @@ async function loadAtas() {
     container.innerHTML = data
       .sort((a,b) => new Date(b.Data) - new Date(a.Data))
       .map(ata => {
-        const editBtn = isAdmin()
-          ? `<button class="btn btn-outline btn-sm" style="margin-left:auto" onclick="editAta('${esc(ata.ID)}')"><i class="fas fa-edit"></i></button>`
+        const adminBtns = isAdmin()
+          ? `<div style="display:flex;gap:6px;margin-left:auto" onclick="event.stopPropagation()">
+               <button class="btn btn-outline btn-sm" onclick="editAta('${esc(ata.ID)}')"><i class="fas fa-edit"></i></button>
+               <button class="btn btn-outline btn-sm" style="color:var(--coral)" onclick="deleteAta('${esc(ata.ID)}','${esc(ata.Titulo)}')"><i class="fas fa-trash"></i></button>
+             </div>`
           : '';
         return `<div class="ata-card" onclick="verAta('${esc(ata.ID)}','${esc(ata.Titulo)}')">
           <div class="ata-title">${esc(ata.Titulo)}</div>
@@ -4049,7 +4075,7 @@ async function loadAtas() {
             <span><i class="fas fa-users"></i> ${esc(ata.Presentes)} presentes</span>
             <span><i class="fas fa-clock"></i> ${esc(ata.Duracao)}</span>
             <span class="badge ${statusBadge(ata.Status)}">${esc(ata.Status)}</span>
-            ${editBtn}
+            ${adminBtns}
           </div>
         </div>`;
       }).join('');
@@ -4125,7 +4151,7 @@ async function loadTesouraria() {
       }
     });
 
-    const fmt = v => '₲ ' + Math.round(Math.abs(v)).toLocaleString('es-PY');
+    const fmt = v => fmtGs(v);
 
     // ── Atualiza os 4 stat cards ──────────────────────────
     const s = document.getElementById('tesour-saldo-val');
@@ -4185,12 +4211,16 @@ async function loadTesouraria() {
       .map(mov => {
         const isRec = String(mov.Tipo).toLowerCase() === 'receita';
         const v = parseFloat(mov.Valor) || 0;
+        const delBtn = isAdmin()
+          ? `<button class="btn btn-outline btn-sm" style="color:var(--coral);margin-left:10px;flex-shrink:0" onclick="deleteLancamento('${esc(mov.ID)}','${esc(mov.Descricao)}')"><i class="fas fa-trash"></i></button>`
+          : '';
         return `<div class="finance-row">
-          <div>
+          <div style="flex:1">
             <div class="finance-desc">${esc(mov.Descricao)}</div>
             <div class="finance-cat">${esc(mov.Tipo)} • ${esc(mov.Categoria)} • ${formatDate(mov.Data)}</div>
           </div>
-          <div class="finance-val ${isRec?'pos':'neg'}">${isRec?'+':'−'} ₲ ${Math.round(v).toLocaleString('es-PY')}</div>
+          <div class="finance-val ${isRec?'pos':'neg'}" style="flex-shrink:0">${isRec?'+':'−'} ${fmtGs(v, false)}</div>
+          ${delBtn}
         </div>`;
       }).join('');
 
@@ -4740,15 +4770,18 @@ async function loadPesquisa() {
 
     grid.innerHTML = data.map(p => {
       const prog = parseInt(p.Progresso) || 0;
-      const editBtn = isAdmin()
-        ? `<button class="btn btn-outline btn-sm" onclick="editProjeto('${esc(p.ID)}')"><i class="fas fa-edit"></i></button>`
+      const adminBtns = isAdmin()
+        ? `<div style="display:flex;gap:6px">
+             <button class="btn btn-outline btn-sm" onclick="editProjeto('${esc(p.ID)}')"><i class="fas fa-edit"></i></button>
+             <button class="btn btn-outline btn-sm" style="color:var(--coral)" onclick="deleteProjeto('${esc(p.ID)}','${esc(p.Titulo)}')"><i class="fas fa-trash"></i></button>
+           </div>`
         : '';
       return `<div class="research-card">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
           <span class="badge ${statusBadge(p.Status)}">${esc(p.Status)}</span>
           <div style="display:flex;align-items:center;gap:8px">
             <span style="font-size:12px;color:var(--text3)">${p.CAAE ? 'CAAE: '+esc(p.CAAE) : 'CEP pendente'}</span>
-            ${editBtn}
+            ${adminBtns}
           </div>
         </div>
         <div class="research-title">${esc(p.Titulo)}</div>
@@ -4801,13 +4834,21 @@ async function loadExtensao() {
       container.innerHTML = data
         .sort((a,b) => new Date(b.Data) - new Date(a.Data))
         .slice(0, 8)
-        .map(ac => `<div class="finance-row">
-          <div>
-            <div class="finance-desc">${esc(ac.Nome)}</div>
-            <div class="finance-cat">${formatDate(ac.Data)} • ${esc(ac.Participantes)} participantes • ${esc(ac.Local)}</div>
-          </div>
-          <span class="badge ${statusBadge(ac.Status)}">${esc(ac.Status)}</span>
-        </div>`).join('');
+        .map(ac => {
+          const adminBtns = isAdmin()
+            ? `<div style="display:flex;gap:6px;margin-left:10px;flex-shrink:0">
+                 <button class="btn btn-outline btn-sm" style="color:var(--coral)" onclick="deleteAcao('${esc(ac.ID)}','${esc(ac.Nome)}')"><i class="fas fa-trash"></i></button>
+               </div>`
+            : '';
+          return `<div class="finance-row">
+            <div style="flex:1">
+              <div class="finance-desc">${esc(ac.Nome)}</div>
+              <div class="finance-cat">${formatDate(ac.Data)} • ${esc(ac.Participantes)} participantes • ${esc(ac.Local)}</div>
+            </div>
+            <span class="badge ${statusBadge(ac.Status)}">${esc(ac.Status)}</span>
+            ${adminBtns}
+          </div>`;
+        }).join('');
     }
 
     // ── Lista de parceiros (dinâmica) ──────────────────────
@@ -4822,18 +4863,23 @@ async function loadExtensao() {
       } else {
         parcEl.innerHTML = parceiros
           .sort((a, b) => {
-            // Ativos primeiro
             if (a.Status === 'Ativo' && b.Status !== 'Ativo') return -1;
             if (b.Status === 'Ativo' && a.Status !== 'Ativo') return 1;
             return (a.Nome || '').localeCompare(b.Nome || '');
           })
-          .map(p => `<div class="finance-row">
-            <div>
-              <div class="finance-desc">${esc(p.Nome)}</div>
-              <div class="finance-cat">${esc(p.Descricao || p.Area || '—')}</div>
-            </div>
-            <span class="badge ${statusBadge(p.Status)}">${esc(p.Status || '—')}</span>
-          </div>`).join('');
+          .map(p => {
+            const delBtn = isAdmin()
+              ? `<button class="btn btn-outline btn-sm" style="color:var(--coral);margin-left:8px;flex-shrink:0" onclick="deleteParceiro('${esc(p.ID)}','${esc(p.Nome)}')"><i class="fas fa-trash"></i></button>`
+              : '';
+            return `<div class="finance-row">
+              <div style="flex:1">
+                <div class="finance-desc">${esc(p.Nome)}</div>
+                <div class="finance-cat">${esc(p.Descricao || p.Area || '—')}</div>
+              </div>
+              <span class="badge ${statusBadge(p.Status)}">${esc(p.Status || '—')}</span>
+              ${delBtn}
+            </div>`;
+          }).join('');
       }
     }
   } catch(e) { console.warn('loadExtensao:', e); }
@@ -4860,8 +4906,11 @@ async function loadEnsino() {
     }
     grid.innerHTML = data.map(c => {
       const prog    = parseInt(c.Progresso) || 0;
-      const editBtn = isAdmin()
-        ? `<button class="btn btn-outline btn-sm" style="margin-top:10px;width:100%" onclick="editCurso('${esc(String(c.ID))}')"><i class="fas fa-edit"></i> Editar</button>`
+      const adminBtns = isAdmin()
+        ? `<div style="display:flex;gap:6px;margin-top:10px">
+             <button class="btn btn-outline btn-sm" style="flex:1" onclick="editCurso('${esc(String(c.ID))}')"><i class="fas fa-edit"></i> Editar</button>
+             <button class="btn btn-outline btn-sm" style="color:var(--coral)" onclick="deleteCurso('${esc(String(c.ID))}','${esc(c.Titulo)}')"><i class="fas fa-trash"></i></button>
+           </div>`
         : '';
       return `<div class="research-card">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
@@ -4879,7 +4928,7 @@ async function loadEnsino() {
           <span>Progresso</span><strong>${prog}%</strong>
         </div>
         <div class="progress-bar"><div class="progress-fill" style="width:${prog}%"></div></div>
-        ${editBtn}
+        ${adminBtns}
       </div>`;
     }).join('');
   } catch(e) {
@@ -5362,7 +5411,7 @@ async function salvarLancamento() {
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando…';
     await apiPost({ action: 'insert', sheet: 'Financeiro', row });
     closeModal('modal-lancamento');
-    showToast(`Lançamento de ₲ ${Math.round(parseFloat(row.Valor)).toLocaleString('es-PY')} registrado!`, 'success');
+    showToast(`Lançamento de ${fmtGs(parseFloat(row.Valor))} registrado!`, 'success');
     loadTesouraria();
   } catch(e) {
     showToast('Erro ao registrar: ' + e.message, 'error');
@@ -6503,15 +6552,20 @@ async function loadCorrespondencias() {
       if (recebidas.length === 0) {
         recEl.innerHTML = '<div style="padding:12px;color:var(--text3);font-size:13px">Nenhuma correspondência recebida.</div>';
       } else {
-        recEl.innerHTML = recebidas.slice(0, 5).map(c => `
-          <div class="ata-card">
+        recEl.innerHTML = recebidas.slice(0, 5).map(c => {
+          const delBtn = isAdmin()
+            ? `<button class="btn btn-outline btn-sm" style="color:var(--coral);margin-left:auto" onclick="deleteCorrespondencia('${esc(c.ID)}','${esc(c.Assunto)}')"><i class="fas fa-trash"></i></button>`
+            : '';
+          return `<div class="ata-card">
             <div class="ata-title">${esc(c.Assunto)}</div>
             <div class="ata-meta">
               <span>${esc(c.Remetente || c.Destinatario || '—')}</span>
               <span>${formatDate(c.Data)}</span>
               <span class="badge ${statusBadge(c.Status)}">${esc(c.Status || '—')}</span>
+              ${delBtn}
             </div>
-          </div>`).join('');
+          </div>`;
+        }).join('');
       }
     }
 
@@ -6519,15 +6573,20 @@ async function loadCorrespondencias() {
       if (enviadas.length === 0) {
         envEl.innerHTML = '<div style="padding:12px;color:var(--text3);font-size:13px">Nenhuma correspondência enviada.</div>';
       } else {
-        envEl.innerHTML = enviadas.slice(0, 5).map(c => `
-          <div class="ata-card">
+        envEl.innerHTML = enviadas.slice(0, 5).map(c => {
+          const delBtn = isAdmin()
+            ? `<button class="btn btn-outline btn-sm" style="color:var(--coral);margin-left:auto" onclick="deleteCorrespondencia('${esc(c.ID)}','${esc(c.Assunto)}')"><i class="fas fa-trash"></i></button>`
+            : '';
+          return `<div class="ata-card">
             <div class="ata-title">${esc(c.Assunto)}</div>
             <div class="ata-meta">
               <span>Para: ${esc(c.Destinatario || '—')}</span>
               <span>${formatDate(c.Data)}</span>
               <span class="badge ${statusBadge(c.Status)}">${esc(c.Status || '—')}</span>
+              ${delBtn}
             </div>
-          </div>`).join('');
+          </div>`;
+        }).join('');
       }
     }
   } catch(e) {
@@ -6694,7 +6753,7 @@ async function carregarNotificacoes() {
     const fin = await apiGet({ action: 'getAll', sheet: 'Financeiro' });
     if (fin && fin.length) {
       const ult = fin[fin.length - 1];
-      notifs.push({ icon: 'fa-receipt', cor: 'var(--sage)', msg: `Último lançamento: ${ult.Descricao} (₲ ${Math.round(parseFloat(ult.Valor)||0).toLocaleString('es-PY')})`, data: formatDate(ult.Data) });
+      notifs.push({ icon: 'fa-receipt', cor: 'var(--sage)', msg: `Último lançamento: ${ult.Descricao} (${fmtGs(parseFloat(ult.Valor)||0)})`, data: formatDate(ult.Data) });
     }
 
     // Próximos eventos
@@ -8038,6 +8097,136 @@ async function deleteOuvidoria(id) {
         await apiPost({ action: 'delete', sheet: 'Ouvidoria', id });
         showToast('Manifestação excluída com sucesso.', 'success');
         loadOuvidoria();
+      } catch(e) { showToast('Erro ao excluir: ' + e.message, 'error'); }
+    }
+  });
+}
+
+// ══════════════════════════════════════════════════════════════
+//  FUNÇÕES DE EXCLUSÃO — demais seções
+// ══════════════════════════════════════════════════════════════
+
+async function deleteAta(id, titulo) {
+  if (!requireAdmin('excluir atas')) return;
+  customConfirm({
+    title: 'Excluir ata',
+    message: `Deseja realmente excluir a ata "${titulo}"? Esta ação não pode ser desfeita.`,
+    confirmLabel: 'Excluir',
+    icon: 'fa-trash',
+    iconColor: 'var(--coral)',
+    onConfirm: async () => {
+      try {
+        await apiPost({ action: 'delete', sheet: 'Atas', id });
+        showToast('Ata excluída com sucesso.', 'success');
+        loadAtas();
+      } catch(e) { showToast('Erro ao excluir: ' + e.message, 'error'); }
+    }
+  });
+}
+
+async function deleteLancamento(id, descricao) {
+  if (!requireAdmin('excluir lançamentos')) return;
+  customConfirm({
+    title: 'Excluir lançamento',
+    message: `Deseja excluir o lançamento "${descricao}"? O saldo será recalculado.`,
+    confirmLabel: 'Excluir',
+    icon: 'fa-trash',
+    iconColor: 'var(--coral)',
+    onConfirm: async () => {
+      try {
+        await apiPost({ action: 'delete', sheet: 'Financeiro', id });
+        showToast('Lançamento excluído com sucesso.', 'success');
+        loadTesouraria();
+      } catch(e) { showToast('Erro ao excluir: ' + e.message, 'error'); }
+    }
+  });
+}
+
+async function deleteProjeto(id, titulo) {
+  if (!requireAdmin('excluir projetos')) return;
+  customConfirm({
+    title: 'Excluir projeto',
+    message: `Deseja realmente excluir o projeto "${titulo}"? Esta ação não pode ser desfeita.`,
+    confirmLabel: 'Excluir',
+    icon: 'fa-trash',
+    iconColor: 'var(--coral)',
+    onConfirm: async () => {
+      try {
+        await apiPost({ action: 'delete', sheet: 'Pesquisas', id });
+        showToast('Projeto excluído com sucesso.', 'success');
+        loadPesquisa();
+      } catch(e) { showToast('Erro ao excluir: ' + e.message, 'error'); }
+    }
+  });
+}
+
+async function deleteAcao(id, nome) {
+  if (!requireAdmin('excluir ações')) return;
+  customConfirm({
+    title: 'Excluir ação de extensão',
+    message: `Deseja realmente excluir a ação "${nome}"?`,
+    confirmLabel: 'Excluir',
+    icon: 'fa-trash',
+    iconColor: 'var(--coral)',
+    onConfirm: async () => {
+      try {
+        await apiPost({ action: 'delete', sheet: 'Extensao', id });
+        showToast('Ação excluída com sucesso.', 'success');
+        loadExtensao();
+      } catch(e) { showToast('Erro ao excluir: ' + e.message, 'error'); }
+    }
+  });
+}
+
+async function deleteParceiro(id, nome) {
+  if (!requireAdmin('excluir parceiros')) return;
+  customConfirm({
+    title: 'Excluir parceiro',
+    message: `Deseja realmente excluir o parceiro "${nome}"?`,
+    confirmLabel: 'Excluir',
+    icon: 'fa-trash',
+    iconColor: 'var(--coral)',
+    onConfirm: async () => {
+      try {
+        await apiPost({ action: 'delete', sheet: 'Parceiros', id });
+        showToast('Parceiro excluído com sucesso.', 'success');
+        loadExtensao();
+      } catch(e) { showToast('Erro ao excluir: ' + e.message, 'error'); }
+    }
+  });
+}
+
+async function deleteCurso(id, titulo) {
+  if (!requireAdmin('excluir cursos')) return;
+  customConfirm({
+    title: 'Excluir curso',
+    message: `Deseja realmente excluir o curso "${titulo}"? Esta ação não pode ser desfeita.`,
+    confirmLabel: 'Excluir',
+    icon: 'fa-trash',
+    iconColor: 'var(--coral)',
+    onConfirm: async () => {
+      try {
+        await apiPost({ action: 'delete', sheet: 'Cursos', id });
+        showToast('Curso excluído com sucesso.', 'success');
+        loadEnsino();
+      } catch(e) { showToast('Erro ao excluir: ' + e.message, 'error'); }
+    }
+  });
+}
+
+async function deleteCorrespondencia(id, assunto) {
+  if (!requireAdmin('excluir correspondências')) return;
+  customConfirm({
+    title: 'Excluir correspondência',
+    message: `Deseja realmente excluir "${assunto}"?`,
+    confirmLabel: 'Excluir',
+    icon: 'fa-trash',
+    iconColor: 'var(--coral)',
+    onConfirm: async () => {
+      try {
+        await apiPost({ action: 'delete', sheet: 'Correspondencias', id });
+        showToast('Correspondência excluída com sucesso.', 'success');
+        loadCorrespondencias();
       } catch(e) { showToast('Erro ao excluir: ' + e.message, 'error'); }
     }
   });
