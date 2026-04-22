@@ -1948,7 +1948,7 @@ th.sort-desc .sort-icon { opacity: 1; color: var(--teal); }
           <option value="">Todas as categorias</option>
           <option>Ata</option><option>Financeiro</option><option>Regulamento</option>
           <option>Marketing</option><option>Pesquisa</option><option>Extensão</option>
-          <option>Ensino</option><option>Imagem</option><option>Geral</option>
+          <option>Ensino</option><option>Certificado</option><option>Geral</option>
         </select>
         <button class="btn btn-primary admin-only" onclick="uploadDocumento()"><i class="fas fa-upload"></i> Enviar arquivo</button>
       </div>
@@ -2248,6 +2248,7 @@ th.sort-desc .sort-icon { opacity: 1; color: var(--teal); }
       <div class="form-group"><label class="form-label">CAAE (se houver)</label><input id="proj-caae" class="form-input" type="text" placeholder="Nº CAAE"></div>
       <div class="form-group"><label class="form-label">Nº de pesquisadores</label><input id="proj-pesquisadores" class="form-input" type="number" placeholder="0"></div>
     </div>
+    <div class="form-group"><label class="form-label"><i class="fab fa-orcid" style="color:#A6CE39;margin-right:5px"></i>ORCID do responsável <span style="color:var(--text3);font-weight:400">(opcional)</span></label><input id="proj-orcid" class="form-input" type="text" placeholder="0000-0000-0000-0000"></div>
     <div class="form-group"><label class="form-label">Descrição / Objetivos</label><textarea id="proj-descricao" class="form-textarea" placeholder="Descreva o projeto e seus objetivos…"></textarea></div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('modal-novo-projeto')">Cancelar</button>
@@ -2423,7 +2424,7 @@ th.sort-desc .sort-icon { opacity: 1; color: var(--teal); }
           <option value="Pesquisa">Pesquisa</option>
           <option value="Extensão">Extensão</option>
           <option value="Ensino">Ensino</option>
-          <option value="Imagem">Imagem</option>
+          <option value="Certificado">Certificado</option>
         </select>
       </div>
     </div>
@@ -2560,6 +2561,7 @@ th.sort-desc .sort-icon { opacity: 1; color: var(--teal); }
       <div class="form-group"><label class="form-label">Pesquisadores</label><input id="edit-proj-pesq" class="form-input" type="number" min="0"></div>
       <div class="form-group"><label class="form-label">Progresso (%)</label><input id="edit-proj-prog" class="form-input" type="number" min="0" max="100"></div>
     </div>
+    <div class="form-group"><label class="form-label"><i class="fab fa-orcid" style="color:#A6CE39;margin-right:5px"></i>ORCID do responsável</label><input id="edit-proj-orcid" class="form-input" type="text" placeholder="0000-0000-0000-0000"></div>
     <div class="form-group"><label class="form-label">Descrição</label><textarea id="edit-proj-desc" class="form-textarea"></textarea></div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('modal-edit-projeto')">Cancelar</button>
@@ -2622,7 +2624,7 @@ th.sort-desc .sort-icon { opacity: 1; color: var(--teal); }
         <select id="edit-doc-static-cat" class="form-select">
           <option>Ata</option><option>Financeiro</option><option>Regulamento</option>
           <option>Marketing</option><option>Pesquisa</option><option>Extensão</option>
-          <option>Ensino</option><option>Imagem</option><option>Geral</option>
+          <option>Ensino</option><option>Certificado</option><option>Geral</option>
         </select>
       </div>
       <div class="form-group">
@@ -4778,6 +4780,7 @@ async function editProjeto(id) {
     document.getElementById('edit-proj-caae').value    = p.CAAE        || '';
     document.getElementById('edit-proj-pesq').value    = p.Pesquisadores|| '';
     document.getElementById('edit-proj-prog').value    = p.Progresso   || '0';
+    document.getElementById('edit-proj-orcid').value   = p.ORCID       || '';
     document.getElementById('edit-proj-desc').value    = p.Descricao   || '';
     const stSel  = document.getElementById('edit-proj-status');
     if (stSel)  [...stSel.options].forEach(o => { o.selected = o.value === p.Status; });
@@ -4795,6 +4798,7 @@ async function salvarEdicaoProjeto() {
     CAAE:         document.getElementById('edit-proj-caae').value.trim(),
     Pesquisadores:document.getElementById('edit-proj-pesq').value,
     Progresso:    document.getElementById('edit-proj-prog').value,
+    ORCID:        document.getElementById('edit-proj-orcid')?.value.trim() || '',
     Descricao:    document.getElementById('edit-proj-desc').value.trim(),
   };
   if (!row.Titulo) { showToast('Informe o título.', 'warning'); return; }
@@ -4920,6 +4924,7 @@ async function loadPesquisa() {
         <div style="font-size:12px;color:var(--text3);margin-bottom:10px">
           <i class="fas fa-users"></i> ${esc(p.Pesquisadores)} pesquisadores &nbsp;•&nbsp;
           <i class="fas fa-tag"></i> ${esc(p.TipoEstudo)}
+          ${p.ORCID ? ` &nbsp;•&nbsp; <a href="https://orcid.org/${esc(p.ORCID)}" target="_blank" rel="noopener" style="color:#A6CE39;text-decoration:none" title="Ver perfil ORCID"><i class="fab fa-orcid"></i> ${esc(p.ORCID)}</a>` : ''}
         </div>
         <div style="font-size:12px;margin-bottom:4px;display:flex;justify-content:space-between">
           <span>Progresso</span><strong>${prog}%</strong>
@@ -5605,6 +5610,7 @@ async function salvarProjeto() {
     Status:        document.getElementById('proj-status')?.value              || '',
     CAAE:          document.getElementById('proj-caae')?.value.trim()         || '',
     Pesquisadores: document.getElementById('proj-pesquisadores')?.value       || '0',
+    ORCID:         document.getElementById('proj-orcid')?.value.trim()         || '',
     Descricao:     document.getElementById('proj-descricao')?.value           || '',
     Progresso:     '0'
   };
@@ -6123,7 +6129,7 @@ function adicionarCardDocumento({ id, nome, categoria, descricao, tamanho, url, 
   const tipo = iconeMap[mimeType] || iconeMap['default'];
 
   const badgeMap = { Ata:'lav', Financeiro:'gold', Regulamento:'teal', Marketing:'lav',
-                     Pesquisa:'teal', 'Extensão':'sage', Ensino:'sage', Imagem:'lav', Geral:'sage' };
+                     Pesquisa:'teal', 'Extensão':'sage', Ensino:'sage', Certificado:'lav', Geral:'sage' };
   const badgeCls = badgeMap[categoria] || 'teal';
 
   const card = document.createElement('div');
@@ -6257,7 +6263,7 @@ async function salvarDocDinamico() {
 
     // Atualiza badge
     const badgeMap = { Ata:'lav', Financeiro:'gold', Regulamento:'teal', Marketing:'lav',
-                       Pesquisa:'teal', 'Extensão':'sage', Ensino:'sage', Imagem:'lav', Geral:'sage' };
+                       Pesquisa:'teal', 'Extensão':'sage', Ensino:'sage', Certificado:'lav', Geral:'sage' };
     const badge = card.querySelector('.badge');
     if (badge) { badge.className = 'badge ' + (badgeMap[cat] || 'teal'); badge.textContent = cat; }
 
@@ -7497,7 +7503,7 @@ async function salvarDocStatic() {
 
   // Atualiza badge de categoria
   const badgeMap = { Ata:'lav', Financeiro:'gold', Regulamento:'teal', Marketing:'lav',
-                     Pesquisa:'teal', 'Extensão':'sage', Ensino:'sage', Imagem:'lav', Geral:'sage' };
+                     Pesquisa:'teal', 'Extensão':'sage', Ensino:'sage', Certificado:'lav', Geral:'sage' };
   const badge = card.querySelector('.badge');
   if (badge) {
     badge.className = 'badge ' + (badgeMap[cat] || 'teal');
