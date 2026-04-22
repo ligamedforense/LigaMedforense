@@ -2117,6 +2117,8 @@ th.sort-desc .sort-icon { opacity: 1; color: var(--teal); }
     </div>
     <div class="form-group"><label class="form-label">Pauta</label><textarea id="ata-pauta" class="form-textarea" placeholder="Liste os pontos de pauta da reunião…"></textarea></div>
     <div class="form-group"><label class="form-label">Deliberações</label><textarea id="ata-deliberacoes" class="form-textarea" placeholder="Registre as decisões tomadas…"></textarea></div>
+    <div class="form-group"><label class="form-label">Pendências <span style="color:var(--text3);font-weight:400">(tarefas ou assuntos em aberto)</span></label><textarea id="ata-pendencias" class="form-textarea" placeholder="Ex: João — entregar relatório até 30/04&#10;Maria — contatar parceiro IML" rows="3"></textarea></div>
+    <div class="form-group"><label class="form-label">Ausências <span style="color:var(--text3);font-weight:400">(membros ausentes)</span></label><textarea id="ata-ausencias" class="form-textarea" placeholder="Ex: Ana Lima (justificada), Carlos Souza (não justificada)" rows="2"></textarea></div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('modal-nova-ata')">Cancelar</button>
       <button class="btn btn-primary"><i class="fas fa-save"></i> Salvar ata</button>
@@ -2310,7 +2312,7 @@ th.sort-desc .sort-icon { opacity: 1; color: var(--teal); }
     </div>
     <div class="form-group"><label class="form-label">Nome da ação</label><input id="acao-nome" class="form-input" type="text" placeholder="Ex: Treinamento de RCP na Praça"></div>
     <div class="form-row">
-      <div class="form-group"><label class="form-label">Tipo</label><select id="acao-tipo" class="form-select"><option>Treinamento prático</option><option>Palestra</option><option>Simulação de emergência</option><option>Campanha</option><option>Triagem</option></select></div>
+      <div class="form-group"><label class="form-label">Tipo</label><select id="acao-tipo" class="form-select"><option>Palestra educativa</option><option>Workshop / Treinamento</option><option>Visita técnica</option><option>Ação comunitária</option><option>Campanha de conscientização</option><option>Parceria institucional</option><option>Produção de material educativo</option><option>Minicurso</option><option>Roda de conversa</option></select></div>
       <div class="form-group"><label class="form-label">Data</label><input id="acao-data" class="form-input" type="date"></div>
     </div>
     <div class="form-row">
@@ -2676,8 +2678,11 @@ th.sort-desc .sort-icon { opacity: 1; color: var(--teal); }
     <div class="form-row">
       <div class="form-group"><label class="form-label">Tipo</label>
         <select id="edit-acao-tipo" class="form-select">
-          <option>Treinamento prático</option><option>Palestra</option>
-          <option>Simulação de emergência</option><option>Campanha</option><option>Triagem</option>
+          <option>Palestra educativa</option><option>Workshop / Treinamento</option>
+          <option>Visita técnica</option><option>Ação comunitária</option>
+          <option>Campanha de conscientização</option><option>Parceria institucional</option>
+          <option>Produção de material educativo</option><option>Minicurso</option>
+          <option>Roda de conversa</option>
         </select>
       </div>
       <div class="form-group"><label class="form-label">Data</label><input id="edit-acao-data" class="form-input" type="date"></div>
@@ -5450,6 +5455,8 @@ async function salvarAta() {
   const presentes= document.getElementById('ata-presentes')?.value|| '0';
   const pauta    = document.getElementById('ata-pauta')?.value    || '';
   const deliber  = document.getElementById('ata-deliberacoes')?.value || '';
+  const pendencias= document.getElementById('ata-pendencias')?.value || '';
+  const ausencias = document.getElementById('ata-ausencias')?.value  || '';
 
   const dataPtBR = data
     ? new Date(data + 'T00:00:00').toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
@@ -5459,11 +5466,13 @@ async function salvarAta() {
     Titulo:       `Reunião ${tipo} — ${dataPtBR}`,
     Tipo:         tipo,
     Data:         data,
-    HorarioInicio:horario,   // campo semântico correto: hora de início
-    Duracao:      '',         // duração (não preenchida neste modal; editável em modal-edit-ata)
+    HorarioInicio:horario,
+    Duracao:      '',
     Presentes:    presentes,
     Pauta:        pauta,
     Deliberacoes: deliber,
+    Pendencias:   pendencias,
+    Ausencias:    ausencias,
     Status:       'Pendente assinatura'
   };
 
