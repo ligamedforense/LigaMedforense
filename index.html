@@ -1521,21 +1521,22 @@ th.sort-desc .sort-icon { opacity: 1; color: var(--teal); }
       <div class="section-title">Tesouraria</div>
       <div class="section-sub">Controle financeiro, caixa, receitas, despesas e prestação de contas da LAMF.</div>
 
+      <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);margin-bottom:10px"><span style="color:var(--teal)">₲</span> Caixa em Guaranis</div>
       <div class="grid grid-4 gap-20">
         <div class="stat-card" style="--accent-color:var(--sage)">
-          <div class="stat-label">Saldo atual</div>
+          <div class="stat-label">Saldo atual (₲)</div>
           <div class="stat-value" style="color:var(--sage)" id="tesour-saldo-val">Calculando…</div>
           <div class="stat-change up" id="tesour-saldo-change"><i class="fas fa-sync fa-spin" style="font-size:10px"></i> carregando</div>
           <i class="fas fa-piggy-bank stat-icon"></i>
         </div>
         <div class="stat-card" style="--accent-color:var(--teal)">
-          <div class="stat-label">Receitas (mês)</div>
+          <div class="stat-label">Receitas (mês) ₲</div>
           <div class="stat-value" id="tesour-rec-val">—</div>
           <div class="stat-change up" id="tesour-rec-change"><i class="fas fa-sync fa-spin" style="font-size:10px"></i> carregando</div>
           <i class="fas fa-arrow-down stat-icon"></i>
         </div>
         <div class="stat-card" style="--accent-color:var(--coral)">
-          <div class="stat-label">Despesas (mês)</div>
+          <div class="stat-label">Despesas (mês) ₲</div>
           <div class="stat-value" id="tesour-desp-val">—</div>
           <div class="stat-change down" id="tesour-desp-change"><i class="fas fa-sync fa-spin" style="font-size:10px"></i> carregando</div>
           <i class="fas fa-arrow-up stat-icon"></i>
@@ -1545,6 +1546,28 @@ th.sort-desc .sort-icon { opacity: 1; color: var(--teal); }
           <div class="stat-value" id="tesour-inadim-val">—</div>
           <div class="stat-change down" id="tesour-inadim-change"><i class="fas fa-exclamation-triangle"></i>Membros em atraso</div>
           <i class="fas fa-exclamation-circle stat-icon"></i>
+        </div>
+      </div>
+
+      <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);margin:24px 0 10px"><span style="color:var(--sage)">R$</span> Caixa em Reais</div>
+      <div class="grid grid-4 gap-20">
+        <div class="stat-card" style="--accent-color:var(--sage)">
+          <div class="stat-label">Saldo atual (R$)</div>
+          <div class="stat-value" style="color:var(--sage)" id="tesour-saldo-val-brl">—</div>
+          <div class="stat-change up" id="tesour-saldo-change-brl"><i class="fas fa-sync fa-spin" style="font-size:10px"></i> carregando</div>
+          <i class="fas fa-piggy-bank stat-icon"></i>
+        </div>
+        <div class="stat-card" style="--accent-color:var(--teal)">
+          <div class="stat-label">Receitas (mês) R$</div>
+          <div class="stat-value" id="tesour-rec-val-brl">—</div>
+          <div class="stat-change up" id="tesour-rec-change-brl"><i class="fas fa-sync fa-spin" style="font-size:10px"></i> carregando</div>
+          <i class="fas fa-arrow-down stat-icon"></i>
+        </div>
+        <div class="stat-card" style="--accent-color:var(--coral)">
+          <div class="stat-label">Despesas (mês) R$</div>
+          <div class="stat-value" id="tesour-desp-val-brl">—</div>
+          <div class="stat-change down" id="tesour-desp-change-brl"><i class="fas fa-sync fa-spin" style="font-size:10px"></i> carregando</div>
+          <i class="fas fa-arrow-up stat-icon"></i>
         </div>
       </div>
 
@@ -2193,9 +2216,12 @@ th.sort-desc .sort-icon { opacity: 1; color: var(--teal); }
     </div>
     <div class="form-row">
       <div class="form-group"><label class="form-label">Tipo</label><select id="lanc-tipo" class="form-select"><option>Receita</option><option>Despesa</option></select></div>
-      <div class="form-group"><label class="form-label">Valor (₲) <span style="color:var(--coral)">*</span></label><input id="lanc-valor" class="form-input" type="number" placeholder="0" step="1" required></div>
+      <div class="form-group"><label class="form-label">Moeda (caixa)</label><select id="lanc-moeda" class="form-select" onchange="_atualizarCampoValorMoeda()"><option value="PYG">₲ Guarani</option><option value="BRL">R$ Real</option></select></div>
     </div>
-    <div class="form-group"><label class="form-label">Descrição <span style="color:var(--coral)">*</span></label><input id="lanc-descricao" class="form-input" type="text" placeholder="Descreva o lançamento" required></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label" id="lanc-valor-label">Valor (₲) <span style="color:var(--coral)">*</span></label><input id="lanc-valor" class="form-input" type="number" placeholder="0" step="1" required></div>
+      <div class="form-group"><label class="form-label">Descrição <span style="color:var(--coral)">*</span></label><input id="lanc-descricao" class="form-input" type="text" placeholder="Descreva o lançamento" required></div>
+    </div>
     <div class="form-row">
       <div class="form-group"><label class="form-label">Categoria</label><select id="lanc-categoria" class="form-select"><option>Mensalidades</option><option>Eventos</option><option>Material</option><option>Patrocínio</option><option>Administrativo</option><option>Pesquisa</option></select></div>
       <div class="form-group"><label class="form-label">Data</label><input id="lanc-data" class="form-input" type="date"></div>
@@ -3278,6 +3304,7 @@ function openModal(id) {
     showToast('Apenas administradores podem adicionar ou editar dados.', 'warning');
     return;
   }
+  if (id === 'modal-lancamento') _atualizarCampoValorMoeda();
   const m = document.getElementById(id);
   if (m) { m.classList.add('open'); m.querySelector('input,textarea,select')?.focus(); }
 }
@@ -3757,6 +3784,73 @@ function fmtGs(v, abrev = true) {
   return '₲ ' + (abs / 1_000_000_000).toLocaleString('es-PY', { minimumFractionDigits: 0, maximumFractionDigits: 1 }) + ' Bi';
 }
 
+// ── Multi-moeda: caixa ₲ (PYG) e caixa R$ (BRL) ───────────────
+// Lançamentos sem Moeda (antigos) contam como ₲.
+function _moedaDe(mov) {
+  const m = String((mov && mov.Moeda) || '').trim().toUpperCase();
+  return (m === 'BRL' || m === 'R$' || m === 'REAL' || m === 'REAIS') ? 'BRL' : 'PYG';
+}
+
+function fmtBRL(v) {
+  return 'R$ ' + Math.abs(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function fmtMoeda(v, moeda, abrev = true) {
+  return moeda === 'BRL' ? fmtBRL(v) : fmtGs(v, abrev);
+}
+
+function fmtSaldo(v, moeda) {
+  return (v < 0 ? '− ' : '') + fmtMoeda(v, moeda);
+}
+
+/** Calcula saldo, receitas/despesas do mês e despesas por categoria, separados por moeda. */
+function _calcCaixas(financeiro) {
+  const hoje = new Date();
+  const novo = () => ({ saldo: 0, recMes: 0, despMes: 0, cats: {}, n: 0 });
+  const cx = { PYG: novo(), BRL: novo() };
+  (financeiro || []).forEach(mov => {
+    const c     = cx[_moedaDe(mov)];
+    const v     = parseFloat(mov.Valor) || 0;
+    const isRec = String(mov.Tipo).toLowerCase() === 'receita';
+    c.n++;
+    c.saldo += isRec ? v : -v;
+    const d = new Date((mov.Data || '') + 'T00:00:00');
+    if (!isNaN(d) && d.getMonth() === hoje.getMonth() && d.getFullYear() === hoje.getFullYear()) {
+      if (isRec) c.recMes += v; else c.despMes += v;
+    }
+    if (!isRec && mov.Categoria) c.cats[mov.Categoria] = (c.cats[mov.Categoria] || 0) + v;
+  });
+  return cx;
+}
+
+/** Card "Saldo em caixa" da Home: mostra os dois caixas. */
+function _renderHomeSaldo(cx) {
+  const saldoEl = document.getElementById('home-saldo-val');
+  const chEl    = document.getElementById('home-saldo-change');
+  if (saldoEl) saldoEl.innerHTML =
+    `<div>${fmtSaldo(cx.PYG.saldo, 'PYG')}</div>` +
+    `<div style="font-size:22px;margin-top:4px;color:var(--sage)">${fmtSaldo(cx.BRL.saldo, 'BRL')}</div>`;
+  if (chEl) {
+    const dG = cx.PYG.recMes - cx.PYG.despMes;
+    const dR = cx.BRL.recMes - cx.BRL.despMes;
+    const s  = v => v >= 0 ? '+' : '−';
+    chEl.innerHTML = `<i class="fas fa-calendar"></i> Mês: ${s(dG)}${fmtMoeda(dG, 'PYG')} · ${s(dR)}${fmtMoeda(dR, 'BRL')}`;
+    chEl.className = 'stat-change ' + (dG >= 0 && dR >= 0 ? 'up' : 'down');
+  }
+}
+
+/** Ajusta rótulo/step do campo Valor conforme a moeda escolhida no modal. */
+function _atualizarCampoValorMoeda() {
+  const moeda = document.getElementById('lanc-moeda')?.value || 'PYG';
+  const lbl   = document.getElementById('lanc-valor-label');
+  const inp   = document.getElementById('lanc-valor');
+  if (lbl) lbl.innerHTML = `Valor (${moeda === 'BRL' ? 'R$' : '₲'}) <span style="color:var(--coral)">*</span>`;
+  if (inp) {
+    inp.step        = moeda === 'BRL' ? '0.01' : '1';
+    inp.placeholder = moeda === 'BRL' ? '0,00' : '0';
+  }
+}
+
 function setorCor(setor) {
   const map = {
     'Pesquisa':   {bg:'rgba(251,191,36,.15)',  fg:'var(--teal)',    bd:'rgba(251,191,36,.3)',  badge:'teal'},
@@ -3840,32 +3934,13 @@ async function loadHomeStats() {
       } catch(_) { cntAnos.textContent = '—'; }
     }
 
-    // ── Saldo em caixa (home) — calculado da sheet Financeiro ──
-    const saldoEl  = document.getElementById('home-saldo-val');
-    const saldoChEl= document.getElementById('home-saldo-change');
+    // ── Saldo em caixa (home) — dois caixas: ₲ e R$ ──
     if (financeiro && financeiro.length > 0) {
-      let saldo = 0, recMes = 0, despMes = 0;
-      const hoje = new Date();
-      financeiro.forEach(m => {
-        const v    = parseFloat(m.Valor) || 0;
-        const isRec= String(m.Tipo).toLowerCase() === 'receita';
-        saldo += isRec ? v : -v;
-        const d = new Date((m.Data || '') + 'T00:00:00');
-        if (!isNaN(d) && d.getMonth()===hoje.getMonth() && d.getFullYear()===hoje.getFullYear()) {
-          if (isRec) recMes += v; else despMes += v;
-        }
-      });
-      const fmt = v => fmtGs(v);
-      if (saldoEl)  saldoEl.textContent = fmt(saldo);
-      if (saldoChEl) {
-        const diff = recMes - despMes;
-        saldoChEl.innerHTML = diff >= 0
-          ? '<i class="fas fa-arrow-up"></i>' + fmt(diff) + ' este mês'
-          : '<i class="fas fa-arrow-down"></i>' + fmt(diff) + ' este mês';
-        saldoChEl.className = 'stat-change ' + (diff >= 0 ? 'up' : 'down');
-      }
+      _renderHomeSaldo(_calcCaixas(financeiro));
     } else {
-      if (saldoEl) saldoEl.textContent = '—';
+      const saldoEl   = document.getElementById('home-saldo-val');
+      const saldoChEl = document.getElementById('home-saldo-change');
+      if (saldoEl)   saldoEl.textContent = '—';
       if (saldoChEl) saldoChEl.innerHTML = '<i class="fas fa-minus"></i> sem dados';
     }
 
@@ -4268,66 +4343,50 @@ async function loadTesouraria() {
       return;
     }
 
-    let saldo = 0, recMes = 0, despMes = 0;
-    const hoje = new Date();
-    const catTotals = {};
+    const cx = _calcCaixas(data);
 
-    data.forEach(mov => {
-      const v    = parseFloat(mov.Valor) || 0;
-      const isRec= String(mov.Tipo).toLowerCase() === 'receita';
-      saldo += isRec ? v : -v;
-      const d = new Date((mov.Data || '') + 'T00:00:00');
-      if (!isNaN(d) && d.getMonth()===hoje.getMonth() && d.getFullYear()===hoje.getFullYear()) {
-        if (isRec) recMes += v; else despMes += v;
-      }
-      if (!isRec && mov.Categoria) {
-        catTotals[mov.Categoria] = (catTotals[mov.Categoria] || 0) + v;
-      }
+    // ── Cards dos dois caixas (₲ sem sufixo, R$ com sufixo -brl) ──
+    const setTxt  = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    const setHtml = (id, v) => { const el = document.getElementById(id); if (el) el.innerHTML  = v; };
+    [['PYG', ''], ['BRL', '-brl']].forEach(([moeda, suf]) => {
+      const c = cx[moeda];
+      setTxt ('tesour-saldo-val'    + suf, fmtSaldo(c.saldo, moeda));
+      setHtml('tesour-saldo-change' + suf, `<i class="fas fa-sync-alt"></i> ${c.n} lançamento(s)`);
+      setTxt ('tesour-rec-val'      + suf, fmtMoeda(c.recMes, moeda));
+      setHtml('tesour-rec-change'   + suf, '<i class="fas fa-arrow-up"></i> Este mês');
+      setTxt ('tesour-desp-val'     + suf, fmtMoeda(c.despMes, moeda));
+      setHtml('tesour-desp-change'  + suf, '<i class="fas fa-arrow-down"></i> Este mês');
+      const sv = document.getElementById('tesour-saldo-val' + suf);
+      if (sv) sv.style.color = c.saldo < 0 ? 'var(--coral)' : 'var(--sage)';
     });
 
-    const fmt = v => fmtGs(v);
-
-    // ── Atualiza os 4 stat cards ──────────────────────────
-    const s = document.getElementById('tesour-saldo-val');
-    const sc= document.getElementById('tesour-saldo-change');
-    const r = document.getElementById('tesour-rec-val');
-    const rc= document.getElementById('tesour-rec-change');
-    const d2= document.getElementById('tesour-desp-val');
-    const dc= document.getElementById('tesour-desp-change');
-
-    if (s)  s.textContent  = fmt(saldo);
-    if (sc) sc.innerHTML   = '<i class="fas fa-sync-alt"></i> Atualizado agora';
-    if (r)  r.textContent  = fmt(recMes);
-    if (rc) rc.innerHTML   = '<i class="fas fa-arrow-up"></i> Este mês';
-    if (d2) d2.textContent = fmt(despMes);
-    if (dc) dc.innerHTML   = '<i class="fas fa-arrow-down"></i> Este mês';
-
-    // Atualiza também o card de saldo na home (se estiver visível)
-    const homeS = document.getElementById('home-saldo-val');
-    if (homeS && homeS.textContent === '—') homeS.textContent = fmt(saldo);
+    // Atualiza também o card de saldo na Home
+    _renderHomeSaldo(cx);
 
     // ── Indicadores editáveis (inadimplência etc.) ────────
     _aplicarIndicadoresLocais();
 
-    // ── Distribuição de despesas (dinâmico) ───────────────
-    const totalDesp = Object.values(catTotals).reduce((a,b)=>a+b, 0);
+    // ── Distribuição de despesas — um bloco por moeda ─────
     const distrEl = document.getElementById('finance-distribuicao-despesas');
     if (distrEl) {
-      if (totalDesp > 0) {
-        const sorted = Object.entries(catTotals).sort((a,b)=>b[1]-a[1]).slice(0,5);
-        const colors = ['var(--teal)','var(--lavender)','var(--gold)','var(--sage)','var(--coral)'];
-        distrEl.innerHTML = `<div style="display:flex;flex-direction:column;gap:14px">${sorted.map(([cat, val], i) => {
-          const pct = Math.round(val/totalDesp*100);
-          return `<div>
-            <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px">
-              <span>${esc(cat)}</span><strong>${pct}%</strong>
-            </div>
-            <div class="progress-bar"><div class="progress-fill" style="width:${pct}%;background:${colors[i]}"></div></div>
-          </div>`;
-        }).join('')}</div>`;
-      } else {
-        distrEl.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text3);font-size:13px"><i class="fas fa-chart-pie" style="font-size:24px;display:block;margin-bottom:8px;opacity:.3"></i>Sem despesas registradas para calcular.</div>';
-      }
+      const colors = ['var(--teal)','var(--lavender)','var(--gold)','var(--sage)','var(--coral)'];
+      const blocos = [['PYG', '₲ Guaranis'], ['BRL', 'R$ Reais']].map(([moeda, titulo]) => {
+        const cats  = cx[moeda].cats;
+        const total = Object.values(cats).reduce((a, b) => a + b, 0);
+        if (total <= 0) return '';
+        const sorted = Object.entries(cats).sort((a, b) => b[1] - a[1]).slice(0, 5);
+        return `<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:10px">${titulo} — ${fmtMoeda(total, moeda)}</div>
+          <div style="display:flex;flex-direction:column;gap:14px;margin-bottom:20px">${sorted.map(([cat, val], i) => {
+            const pct = Math.round(val / total * 100);
+            return `<div>
+              <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px">
+                <span>${esc(cat)}</span><strong>${pct}%</strong>
+              </div>
+              <div class="progress-bar"><div class="progress-fill" style="width:${pct}%;background:${colors[i]}"></div></div>
+            </div>`;
+          }).join('')}</div>`;
+      }).join('');
+      distrEl.innerHTML = blocos || '<div style="text-align:center;padding:20px;color:var(--text3);font-size:13px"><i class="fas fa-chart-pie" style="font-size:24px;display:block;margin-bottom:8px;opacity:.3"></i>Sem despesas registradas para calcular.</div>';
     }
 
     // ── Próximo prazo de prestação de contas (via Configuracoes) ─
@@ -4351,9 +4410,9 @@ async function loadTesouraria() {
         return `<div class="finance-row">
           <div style="flex:1">
             <div class="finance-desc">${esc(mov.Descricao)}</div>
-            <div class="finance-cat">${esc(mov.Tipo)} • ${esc(mov.Categoria)} • ${formatDate(mov.Data)}</div>
+            <div class="finance-cat">${_moedaDe(mov) === 'BRL' ? 'R$' : '₲'} • ${esc(mov.Tipo)} • ${esc(mov.Categoria)} • ${formatDate(mov.Data)}</div>
           </div>
-          <div class="finance-val ${isRec?'pos':'neg'}" style="flex-shrink:0">${isRec?'+':'−'} ${fmtGs(v, false)}</div>
+          <div class="finance-val ${isRec?'pos':'neg'}" style="flex-shrink:0">${isRec?'+':'−'} ${fmtMoeda(v, _moedaDe(mov), false)}</div>
           ${delBtn}
         </div>`;
       }).join('');
@@ -5504,6 +5563,7 @@ async function salvarLancamento() {
 
   const row = {
     Tipo:      document.getElementById('lanc-tipo')?.value                    || 'Receita',
+    Moeda:     document.getElementById('lanc-moeda')?.value                   || 'PYG',
     Valor:     document.getElementById('lanc-valor')?.value                   || '0',
     Descricao: document.getElementById('lanc-descricao')?.value.trim()        || '',
     Categoria: document.getElementById('lanc-categoria')?.value               || '',
@@ -5557,7 +5617,7 @@ async function salvarLancamento() {
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando…';
     await apiPost({ action: 'insert', sheet: 'Financeiro', row });
     closeModal('modal-lancamento');
-    showToast(`Lançamento de ${fmtGs(parseFloat(row.Valor))} registrado!`, 'success');
+    showToast(`Lançamento de ${fmtMoeda(parseFloat(row.Valor), row.Moeda)} registrado!`, 'success');
     loadTesouraria();
   } catch(e) {
     showToast('Erro ao registrar: ' + e.message, 'error');
@@ -6910,7 +6970,7 @@ async function carregarNotificacoes() {
     const fin = await apiGet({ action: 'getAll', sheet: 'Financeiro' });
     if (fin && fin.length) {
       const ult = fin[fin.length - 1];
-      notifs.push({ icon: 'fa-receipt', cor: 'var(--sage)', msg: `Último lançamento: ${ult.Descricao} (${fmtGs(parseFloat(ult.Valor)||0)})`, data: formatDate(ult.Data) });
+      notifs.push({ icon: 'fa-receipt', cor: 'var(--sage)', msg: `Último lançamento: ${ult.Descricao} (${fmtMoeda(parseFloat(ult.Valor)||0, _moedaDe(ult))})`, data: formatDate(ult.Data) });
     }
 
     // Próximos eventos
@@ -7996,7 +8056,7 @@ function renderBarChart(membros) {
 
 function _updateNavBadges({ eventos, ouvidoria, financeiro }) {
   // Agenda: eventos próximos (próximos 30 dias)
-  const badgeAg = document.getElementById('nav-badge-agenda');
+  const badgeAg = document.getElementById('badge-agenda');
   if (badgeAg && eventos) {
     const hoje = new Date(); hoje.setHours(0,0,0,0);
     const em30 = new Date(hoje); em30.setDate(hoje.getDate() + 30);
@@ -8009,7 +8069,7 @@ function _updateNavBadges({ eventos, ouvidoria, financeiro }) {
   }
 
   // Ouvidoria: pendências
-  const badgeOuv = document.getElementById('nav-badge-ouvidoria');
+  const badgeOuv = document.getElementById('badge-ouvidoria');
   if (badgeOuv && ouvidoria) {
     const pend = ouvidoria.filter(o => o.Status !== 'Resolvido').length;
     badgeOuv.textContent = pend;
@@ -8017,14 +8077,10 @@ function _updateNavBadges({ eventos, ouvidoria, financeiro }) {
   }
 
   // Tesouraria: saldo negativo → alerta
-  const badgeTes = document.getElementById('nav-badge-tesouraria');
+  const badgeTes = document.getElementById('badge-tesouraria');
   if (badgeTes && financeiro) {
-    let saldo = 0;
-    financeiro.forEach(m => {
-      const v = parseFloat(m.Valor) || 0;
-      saldo += String(m.Tipo).toLowerCase() === 'receita' ? v : -v;
-    });
-    badgeTes.style.display = saldo < 0 ? '' : 'none';
+    const cx = _calcCaixas(financeiro);
+    badgeTes.style.display = (cx.PYG.saldo < 0 || cx.BRL.saldo < 0) ? '' : 'none';
   }
 }
 
